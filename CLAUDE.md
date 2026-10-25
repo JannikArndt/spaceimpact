@@ -7,14 +7,21 @@ https://spaceimpact.jannikarndt.de.
 
 ## Ground rules
 
+Follows the app-conventions skill (claude-skills repo).
+
 - All work happens directly on `main`. No branches, no PRs.
-- Every change gets deployed:
-  1. Commit and push to `main`.
-  2. Watch the Actions run (`gh run watch`).
-  3. Confirm `curl -s https://spaceimpact.timpanini.com/version` reports the
-     same `build` as `node server/buildid.mjs`.
-- A change isn't done until it's live.
-- Keep `npm test` green.
+- A change isn't done until it's live:
+
+| command | does | last line |
+|---|---|---|
+| `npm run verify` | what CI runs (`npm test`), before every push | `VERIFY: PASS` |
+| `npm run ship` | clean tree → verify → push `main` → waits until live | `LIVE: <build>` |
+| `npm run live` | is this tree's build live? (`-- --wait` to poll) | `LIVE: <build>` / `NOT LIVE: …` |
+| `npm run logs` | the container's log (needs `CAPROVER_URL`, `CAPROVER_PASSWORD`) | — |
+| `npm start` | the server on `PORT` (default 80) | — |
+| `npm test` | all tests, incl. `test/deploy-contract.test.mjs` | — |
+
+- Keep `npm run verify` green.
 
 ## Project layout
 
@@ -66,13 +73,27 @@ https://spaceimpact.jannikarndt.de.
   - Stamps the build id into the HTML at `<!--BUILD-->`.
   - Answers `GET /version`.
   - Any new file in `public/` must be added to `ROUTES` and to the asset test.
-- `server/buildid.mjs`: hash over `package.json`, `public/` and `server/`. It
-  must cover exactly what the `Dockerfile` copies.
-- `test/server.test.mjs`: tests, run with `node --test` (`npm test`).
-- `.github/workflows/deploy.yml`: on push to `main`: test, `caprover deploy`,
-  then poll `$APP_URL/version` until it matches. Needs secrets
-  `CAPROVER_APP`, `CAPROVER_APP_TOKEN` and variable `APP_URL`.
-- `scripts/caprover-app.sh`: registers the app on CapRover and mints the
-  deploy token.
-- `caprover api` quirk: a call without `-d` opens an interactive prompt and
-  fails non-interactively; always pass `-d` (use `'{}'` for GET).
+- `server/buildid.mjs`: hash over `INPUTS` (Dockerfile, package.json,
+  package-lock.json, `server/`, `public/`, minus `*.md`). The Dockerfile
+  copies exactly these and stamps `BUILD_ID` with this script;
+  `server/version.mjs` reads it (computes it when the file is missing,
+  e.g. locally). `test/deploy-contract.test.mjs` keeps Dockerfile,
+  `.dockerignore` and `INPUTS` in step.
+- `test/`: `server.test.mjs` (server, routes, `/version`, `//version`) and
+  `deploy-contract.test.mjs` (deploy conventions: pins, permissions,
+  timeouts, documented scripts). Run with `npm test`.
+- `Dockerfile`: one stage, `node:24-alpine` by digest, runs as `node`, with
+  a `HEALTHCHECK` on `/version`.
+- `.github/workflows/deploy.yml`: push to `main` → verify → `caprover
+  deploy` → waits until `/version` reports this build (falls back to
+  https://spaceimpact.timpanini.com when the `APP_URL` variable is unset).
+  Secrets `CAPROVER_APP`, `CAPROVER_APP_TOKEN`. Pull requests run verify
+  only.
+- `.github/dependabot.yml` + `workflows/dependabot-merge.yml`: weekly action
+  SHA and base image digest updates that merge and deploy themselves on
+  green.
+- `scripts/`: `verify.mjs`, `live.mjs`, `ship.mjs`, `logs.mjs` (the
+  commands above).
+- CapRover app `spaceimpact`, also at https://spaceimpact.jannikarndt.de
+  (custom domain, HTTPS forced). Registering apps and domains: the
+  timpanini skill.

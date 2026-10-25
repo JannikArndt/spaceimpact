@@ -1,0 +1,9 @@
+# Nothing here may be named in INPUTS (server/buildid.mjs);
+# test/deploy-contract.test.mjs checks.
+.git
+.github
+.claude
+node_modules
+test
+scripts
+*.md

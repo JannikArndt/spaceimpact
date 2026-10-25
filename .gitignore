@@ -1,2 +1,4 @@
 node_modules/
+BUILD_ID
+.env*
 .DS_Store

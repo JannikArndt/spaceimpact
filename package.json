@@ -6,9 +6,13 @@
   "type": "module",
   "scripts": {
     "start": "node server/index.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "verify": "node scripts/verify.mjs",
+    "live": "node scripts/live.mjs",
+    "ship": "node scripts/ship.mjs",
+    "logs": "node scripts/logs.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   }
 }
