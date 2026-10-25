@@ -65,12 +65,9 @@ fi
 
 cap() {
   # $1 = path (starting with /user/...), $2 = method, $3 = JSON data or ''
-  local path="$1" method="$2" data="${3:-}"
-  if [ -n "$data" ]; then
-    npx --yes "caprover@$CLI_VERSION" api -t "$path" -m "$method" -d "$data" -o true
-  else
-    npx --yes "caprover@$CLI_VERSION" api -t "$path" -m "$method" -o true
-  fi
+  # Always pass -d: without it `caprover api` opens an interactive prompt.
+  local path="$1" method="$2" data="${3:-{\}}"
+  npx --yes "caprover@$CLI_VERSION" api -t "$path" -m "$method" -d "$data" -o true
 }
 
 # --- does the app already exist? -------------------------------------------
