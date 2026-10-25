@@ -1,0 +1,14 @@
+{
+  "name": "Void Lance",
+  "short_name": "Void Lance",
+  "description": "A touch-screen side-scrolling shooter with Nokia, Pixel and HD graphics.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "background_color": "#090616",
+  "theme_color": "#090616",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
