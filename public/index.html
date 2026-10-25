@@ -104,6 +104,7 @@ canvas.ic{display:block;image-rendering:pixelated}
 .opt{margin:0 0 16px}
 .opt h3{margin:0 0 8px;font-family:"Silkscreen",ui-monospace,monospace;font-size:15px;font-weight:700}
 .styles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.styles.two{grid-template-columns:repeat(2,minmax(0,1fr))}
 .style-opt{display:flex;flex-direction:column;gap:6px;padding:6px 6px 8px;border-radius:12px;border:0;background:var(--btn-bg);color:var(--ink);cursor:pointer;text-align:left;touch-action:manipulation;font:inherit}
 .style-opt[aria-checked="true"]{background:var(--btn-bg-on);box-shadow:inset 0 0 0 2px var(--focus)}
 .style-opt canvas{width:100%;height:auto;border-radius:7px;display:block;image-rendering:pixelated}
@@ -150,6 +151,11 @@ canvas.ic{display:block;image-rendering:pixelated}
         <h3>Graphics</h3>
         <div class="styles" id="styleOpts" role="radiogroup" aria-label="Graphics style"></div>
         <p class="note" id="styleNote">Switching during a game restarts the current level.</p>
+      </section>
+      <section class="opt">
+        <h3>Difficulty</h3>
+        <div class="styles two" id="diffOpts" role="radiogroup" aria-label="Difficulty"></div>
+        <p class="note">Applies immediately. Each difficulty keeps its own high score.</p>
       </section>
       <section class="opt row">
         <h3 class="px">Sound</h3>
@@ -394,6 +400,14 @@ const STYLE_KEYS = ['nokia', 'pixel', 'hd'];
 let ST, SP, W = 256, H = 144, TOP = 16, s = 1;
 function applyStyle(key) { ST = STYLES[key] || STYLES.hd; SP = ST.spr; H = ST.H; TOP = ST.hud; s = ST.s; }
 applyStyle(loadStr('voidlance.style') || 'hd');
+const DIFFS = {
+  normal: { key: 'normal', label: 'Normal', desc: 'The classic game', hiKey: 'voidlance.hi' },
+  easy: { key: 'easy', label: 'Easy', desc: 'Aim assist snaps your ship to enemy rows', hiKey: 'voidlance.hi.easy' },
+};
+const DIFF_KEYS = ['normal', 'easy'];
+let DF = DIFFS[loadStr('voidlance.difficulty')] || DIFFS.normal;
+// Kept in memory too, so high scores survive the session without localStorage.
+const HIS = { normal: loadNum(DIFFS.normal.hiKey), easy: loadNum(DIFFS.easy.hiKey) };
 function withStyle(key, fn) { const prev = ST.key; applyStyle(key); try { fn(); } finally { applyStyle(prev); } }
 
 const PU = {
@@ -557,10 +571,10 @@ function vibrate(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch
    ========================================================= */
 const G = {
   mode: 'title', phase: '', phaseT: 0, paused: false, clock: 0,
-  t: 0, level: 1, score: 0, hi: loadNum('voidlance.hi'), newHi: false, lives: 3, nextLife: 1500,
+  t: 0, level: 1, score: 0, hi: HIS[DF.key], newHi: false, runEasy: false, lives: 3, nextLife: 1500,
   player: null, enemies: [], pb: [], eb: [], pups: [], parts: [], rings: [], pops: [], booms: [], queue: [],
   boss: null, wavesLeft: 0, waveT: 0, lastWave: '', kills: 0, overT: 0, fireCd: 0, dragDy: 0,
-  shake: 0, flashA: 0, hurtA: 0, sector: 0, bgScroll: 0,
+  shake: 0, flashA: 0, hurtA: 0, sector: 0, bgScroll: 0, assistHold: 0, aimKey: null, aimY: 0,
 };
 const keys = { up: false, down: false };
 const diff = () => 1 + 0.12 * (G.level - 1);
@@ -856,14 +870,19 @@ function beginLevel() {
 function startGame() {
   G.mode = 'run'; G.paused = false; G.level = 1; G.score = 0; G.lives = 3; G.nextLife = 1500;
   G.kills = 0; G.t = 0; G.dragDy = 0; G.fireCd = 0; G.flashA = 0; G.hurtA = 0;
+  G.runEasy = DF.key === 'easy'; G.assistHold = 0; G.aimKey = null;
   clearField();
   G.player = newPlayer(2.0);
   beginLevel(); sfx.start(); updateUI();
 }
 function gameOver() {
   G.mode = 'over'; G.overT = 0; G.paused = false;
-  G.newHi = G.score > G.hi;
-  if (G.newHi) { G.hi = G.score; saveStr('voidlance.hi', G.hi); }
+  // A run that used aim assist at any point counts toward the Easy table.
+  const board = G.runEasy ? DIFFS.easy : DIFFS.normal;
+  const beat = G.score > HIS[board.key];
+  if (beat) { HIS[board.key] = G.score; saveStr(board.hiKey, G.score); }
+  G.newHi = beat && board === DF;
+  G.hi = HIS[DF.key];
   clearField(); sfx.over(); updateUI();
 }
 function fire() {
@@ -899,14 +918,85 @@ function emitExhaust(x, y) {
   if (ST.lcd) return;
   addPart({ k: 'fire', tex: 'cyan', x, y: y + rnd(-1, 1) * s, vx: rnd(-95, -60) * s, vy: rnd(-6, 6) * s, life: 0.22, max: 0.22, r: 2.6 * s });
 }
+/* Easy mode aim assist: ease the ship into the row of the best target so
+   its shots connect. All distances derive from sprite sizes or `s`. */
+const ASSIST_RESUME = 0.35, ASSIST_TAU = 0.035, ASSIST_RANGE = 1.5, ASSIST_STICKY = 0.7;
+function bossAimRows(sp) {
+  // Local rows worth aiming at: solid across a decent width and with solid
+  // rows directly above and below, so a slight drift still hits. `w` is the
+  // row's solid width relative to the widest row; thick rows are preferred.
+  if (sp.aimRows) return sp.aimRows;
+  const n = [];
+  for (let y = 0; y < sp.h; y++) { let c = 0; for (let x = 0; x < sp.w; x++) c += sp.m[y * sp.w + x]; n.push(c); }
+  const max = Math.max(...n), thr = Math.max(2, 0.25 * max), m = Math.max(1, Math.round(s));
+  const ok = y => y >= 0 && y < sp.h && n[y] >= thr;
+  sp.aimRows = [];
+  for (let y = 0; y < sp.h; y++) if (ok(y) && ok(y - m) && ok(y + m)) sp.aimRows.push({ ly: y + 0.5, w: n[y] / max });
+  if (!sp.aimRows.length) for (let y = 0; y < sp.h; y++) if (ok(y)) sp.aimRows.push({ ly: y + 0.5, w: n[y] / max });
+  return sp.aimRows;
+}
+function assistSafe(p, fromCy, toCy) {
+  // Reject a move whose path (beyond where the ship already is) crosses an
+  // enemy shot that will reach the ship soon.
+  const sh = SP.ship.h, R = sh / 2 + ST.orb[1] + 2 * s, cx = p.x + SP.ship.w / 2;
+  const lo = Math.min(fromCy, toCy) - R, hi = Math.max(fromCy, toCy) + R;
+  for (const b of G.eb) {
+    if (b.dead || b.vx >= 0) continue;
+    const dx = b.x - cx;
+    if (dx < -SP.ship.w / 2 || dx > 80 * s) continue;
+    const t = Math.max(0, dx) / -b.vx;
+    if (t > 0.6) continue;
+    const y = b.y + b.vy * t;
+    if (y < lo || y > hi) continue;
+    if (Math.abs(y - fromCy) < R && Math.abs(y - toCy) >= R) continue; // moving away dodges it
+    return false;
+  }
+  return true;
+}
+function aimAssist(p, dt) {
+  const sh = SP.ship.h, pcy = p.y + sh / 2, nose = p.x + SP.ship.w, range = ASSIST_RANGE * sh;
+  const cands = [];
+  const B = G.boss;
+  if (B) {
+    if (B.st === 'fight') for (const r of bossAimRows(B.sp)) {
+      const y = B.y + r.ly, d = Math.abs(y - pcy), key = 'boss' + r.ly;
+      if (d <= range) cands.push({ y, key, cost: (d + (1 - r.w) * sh) * (key === G.aimKey ? ASSIST_STICKY : 1) });
+    }
+  } else for (const e of G.enemies) {
+    if (e.dead) continue;
+    const ex = e.x + e.hb[0];
+    if (ex <= nose || ex >= W) continue;
+    const y = e.y + e.hb[1] + e.hb[3] / 2, d = Math.abs(y - pcy);
+    if (d > range) continue;
+    // Nearest ahead, but row distance weighs triple: vertical travel is what the player feels.
+    cands.push({ y, key: e, cost: ((ex - nose) + 3 * d) * (e === G.aimKey ? ASSIST_STICKY : 1) });
+  }
+  cands.sort((a, b) => a.cost - b.cost);
+  const prevKey = G.aimKey;
+  G.aimKey = null;
+  for (const c of cands) {
+    const ty = Math.max(TOP, Math.min(H - sh - s, c.y - sh / 2));
+    if (!assistSafe(p, pcy, ty + sh / 2)) continue;
+    // Same target as last tick: follow its motion directly so easing doesn't lag behind it.
+    let y = p.y;
+    if (c.key === prevKey) y += Math.max(-sh, Math.min(sh, ty - G.aimY));
+    y += (ty - y) * (1 - Math.exp(-dt / ASSIST_TAU));
+    p.y = Math.max(TOP, Math.min(H - sh - s, y));
+    G.aimKey = c.key; G.aimY = ty;
+    return;
+  }
+}
 function stepRun(dt) {
   G.t += dt; G.phaseT += dt;
   const p = G.player;
   let dy = G.dragDy; G.dragDy = 0;
   if (keys.up) dy -= 150 * s * dt;
   if (keys.down) dy += 150 * s * dt;
+  if (dy !== 0 || keys.up || keys.down) G.assistHold = ASSIST_RESUME;
+  else if (G.assistHold > 0) G.assistHold -= dt;
   if (G.phase !== 'dead') {
     p.y = Math.max(TOP, Math.min(H - SP.ship.h - s, p.y + dy));
+    if (DF.key === 'easy' && G.assistHold <= 0) aimAssist(p, dt);
     emitExhaust(p.x, p.y + SP.ship.h / 2);
   }
   if (p.inv > 0) p.inv -= dt;
@@ -1279,7 +1369,7 @@ function drawTitle() {
   X.shadowBlur = 0; X.shadowColor = 'rgba(0,0,0,0)';
   txt('Swipe to steer. Tap to fire.', W / 2, H * 0.39, 7 * s, '#cfc8ec');
   if (Math.floor(G.clock * 2.2) % 2 === 0) txt('Tap to start', W / 2, H * 0.68, 10 * s, '#ffffff', 'center', '#3cc8ff');
-  txt('HI ' + pad5(G.hi), W / 2, H * 0.78, 7 * s, '#a9a1cf');
+  txt(DF.label.toUpperCase() + '   HI ' + pad5(G.hi), W / 2, H * 0.78, 7 * s, '#a9a1cf');
 }
 function drawOver() {
   X.globalCompositeOperation = 'source-over';
@@ -1287,7 +1377,7 @@ function drawOver() {
   txt('GAME OVER', W / 2, H * 0.32, Math.min(18 * s, W / 7.5), '#ffffff', 'center', '#ff3d5a', true);
   txt('SCORE ' + pad5(G.score), W / 2, H * 0.5, 9 * s, '#ffffff');
   if (G.newHi) { if (Math.floor(G.clock * 3) % 2 === 0) txt('New high score', W / 2, H * 0.61, 8 * s, '#ffc93c', 'center', '#ffc93c'); }
-  else txt('HI ' + pad5(G.hi), W / 2, H * 0.61, 8 * s, '#a9a1cf');
+  else txt(DF.label.toUpperCase() + '   HI ' + pad5(G.hi), W / 2, H * 0.61, 8 * s, '#a9a1cf');
   if (G.overT > 0.9 && Math.floor(G.clock * 2.2) % 2 === 0) txt('Tap to retry', W / 2, H * 0.8, 9 * s, '#ffffff', 'center', '#3cc8ff');
 }
 function drawPause() {
@@ -1404,7 +1494,7 @@ function lcdTitle() {
   lcdStars();
   lctext('VOID', 2, 2);
   lctext('LANCE', 13, 2);
-  lctext('HI ' + pad5(G.hi), 25);
+  lctext(DF.label.toUpperCase() + ' HI ' + pad5(G.hi), 25);
   if (Math.floor(G.clock * 2.5) % 2 === 0) lctext('TAP TO START', 32);
 }
 function lcdOver() {
@@ -1412,7 +1502,7 @@ function lcdOver() {
   lctext('GAME OVER', 4, 2);
   lctext('SCORE ' + pad5(G.score), 18);
   if (G.newHi) { if (Math.floor(G.clock * 3) % 2 === 0) lctext('NEW HI', 26); }
-  else lctext('HI ' + pad5(G.hi), 26);
+  else lctext(DF.label.toUpperCase() + ' HI ' + pad5(G.hi), 26);
   if (G.overT > 0.9 && Math.floor(G.clock * 2.5) % 2 === 0) lctext('TAP TO RETRY', 37);
 }
 function lcdPause() { lctext('PAUSED', 13, 2); lctext('TAP TO RESUME', 30); }
@@ -1569,6 +1659,19 @@ for (const key of STYLE_KEYS) {
   titlePick.appendChild(tb); styleButtons.push(tb);
 }
 
+const diffOpts = document.getElementById('diffOpts');
+const diffButtons = [];
+for (const key of DIFF_KEYS) {
+  const df = DIFFS[key];
+  const ob = document.createElement('button');
+  ob.type = 'button'; ob.className = 'style-opt'; ob.setAttribute('role', 'radio'); ob.dataset.diff = key;
+  const b = document.createElement('b'); b.textContent = df.label;
+  const sp = document.createElement('span'); sp.textContent = df.desc;
+  ob.append(b, sp);
+  ob.addEventListener('click', () => setDifficulty(key));
+  diffOpts.appendChild(ob); diffButtons.push(ob);
+}
+
 /* =========================================================
    Layout
    ========================================================= */
@@ -1647,6 +1750,7 @@ function updateUI() {
   restartBtn.hidden = G.mode !== 'run';
   styleNote.hidden = G.mode !== 'run';
   for (const b of styleButtons) b.setAttribute('aria-checked', b.dataset.style === ST.key ? 'true' : 'false');
+  for (const b of diffButtons) b.setAttribute('aria-checked', b.dataset.diff === DF.key ? 'true' : 'false');
   soundToggle.setAttribute('aria-checked', muted ? 'false' : 'true');
   soundToggle.textContent = muted ? 'Off' : 'On';
 }
@@ -1666,6 +1770,14 @@ function setStyle(key) {
     else { G.player = newPlayer(2.0); beginLevel(); }
   }
   rebuildLegends();
+  updateUI();
+}
+function setDifficulty(key) {
+  if (!DIFFS[key] || key === DF.key) { updateUI(); return; }
+  DF = DIFFS[key];
+  saveStr('voidlance.difficulty', key);
+  G.hi = HIS[DF.key]; G.newHi = false; G.aimKey = null;
+  if (G.mode === 'run' && key === 'easy') G.runEasy = true;
   updateUI();
 }
 function openMenu() { setPaused(true); sheet.hidden = false; updateUI(); closeSheet.focus(); }

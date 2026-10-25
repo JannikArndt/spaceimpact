@@ -33,6 +33,15 @@ https://spaceimpact.jannikarndt.de.
     - shown in the menu sheet's "Graphics" section (`#styleOpts`) and the
       title-screen pills (`#titlePick`);
     - kept in sync by `updateUI()`.
+  - Difficulty follows the same pattern: `DIFFS` / `DF`, `setDifficulty`,
+    localStorage `voidlance.difficulty` (`normal` | `easy`, default `normal`),
+    menu section `#diffOpts`, shown on title and game-over canvases. Applies
+    mid-run without a restart.
+  - High scores are per difficulty (`HIS`): `voidlance.hi` (normal),
+    `voidlance.hi.easy`. A run that used Easy at any point (`G.runEasy`)
+    counts toward the Easy table.
+  - Easy = aim assist (`aimAssist` in `stepRun`): eases the ship into a
+    target's row; paused while steering input is active (`G.assistHold`).
   - `window.__voidLanceQuiet` is read by `public/fresh.js`: when a new build
     is live, the page only reloads itself on the title or game-over screen
     with the menu closed.
