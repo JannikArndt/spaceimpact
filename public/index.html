@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Void Lance</title>
+<title>Space Impact</title>
 <meta name="description" content="A touch-screen side-scrolling shooter with Nokia, Pixel and HD graphics.">
 <meta name="theme-color" content="#ecebf3" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0b0916" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Void Lance">
+<meta name="apple-mobile-web-app-title" content="Space Impact">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -84,7 +84,7 @@ body{
 .grp .lead{margin:2px 0 6px;font-size:13px;line-height:1.35;color:var(--muted)}
 .items{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:4px 14px}
 .items li{display:flex;align-items:center;gap:10px;min-height:38px}
-.items li.span{grid-column:1/-1}
+.items li.span{grid-column:1/-1;flex-wrap:wrap;padding:2px 0}
 .chip{flex:none;display:flex;align-items:center;justify-content:center;gap:6px;min-width:48px;height:38px;padding:0 4px;border-radius:10px;background:var(--chip);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--mark) 55%,transparent)}
 .legend.lcd .chip{background:#c7f0d8}
 .txt{display:flex;flex-direction:column;gap:1px;font-size:12.5px;line-height:1.3;color:var(--muted)}
@@ -309,6 +309,38 @@ function bossSkull(k) {
   for (let x = 14; x <= 28; x += 3) { g.rect(K(x), K(26), K(2), K(2), 'w'); g.rect(K(x + 1), K(29), K(2), K(2), 'w'); }
   return g.rows();
 }
+function bossHive(k) {
+  const g = grid(46 * k, 34 * k), K = v => v * k;
+  g.rect(K(40), K(4), K(5), K(3), 's'); g.rect(K(40), K(27), K(5), K(3), 's');
+  g.ellipse(K(24), K(17), K(20), K(15.5), 'b');
+  for (const [cx, cy] of [[22, 7], [31, 9], [36, 17], [31, 25], [22, 27], [27, 17], [18, 17]]) g.ellipse(K(cx), K(cy), K(3.2), K(2.8), 'a');
+  g.rect(K(5), K(8), K(5), K(2), 'n'); g.rect(K(5), K(24), K(5), K(2), 'n');
+  g.ellipse(K(9), K(17), K(5.5), K(5), 'c');
+  g.ellipse(K(8), K(17), K(3), K(3), 'e'); g.rect(K(6), K(16), K(2), K(2), 'E');
+  return g.rows();
+}
+function bossDread(k) {
+  const g = grid(60 * k, 26 * k), K = v => v * k;
+  g.rect(K(1), K(7), K(10), K(3), 's'); g.rect(K(1), K(17), K(10), K(3), 's');
+  g.ellipse(K(32), K(13), K(27), K(9), 'o');
+  g.rect(K(10), K(9), K(46), K(9), 'o');
+  g.rect(K(22), K(2), K(20), K(6), 'a'); g.rect(K(26), K(0), K(10), K(3), 'n');
+  for (let x = 16; x <= 48; x += 6) g.rect(K(x), K(12), K(3), K(2), 'y');
+  g.rect(K(54), K(8), K(5), K(4), 'c'); g.rect(K(54), K(15), K(5), K(4), 'c');
+  g.ellipse(K(8), K(13.5), K(4), K(3.5), 'r'); g.rect(K(5), K(13), K(2), K(1), 'w');
+  return g.rows();
+}
+function bossEye(k) {
+  const g = grid(46 * k, 40 * k), K = v => v * k;
+  for (const y of [6, 14, 24, 32]) g.rect(K(38), K(y), K(8), K(2), 'm');
+  g.ellipse(K(22), K(20), K(20), K(19), 'v');
+  g.ellipse(K(21), K(20), K(16), K(15), 'w');
+  g.ellipse(K(16), K(20), K(9), K(9), 'g');
+  g.ellipse(K(15), K(20), K(4.5), K(4.5), 'E');
+  g.rect(K(17), K(15), K(2), K(2), 'w');
+  g.rect(K(20), K(1), K(4), K(2), 'm'); g.rect(K(20), K(37), K(4), K(2), 'm');
+  return g.rows();
+}
 const ART = {
   ship: ["bbb............", ".bbbb..........", "..bbccccc......", ".bbcccccccw....", "bbcccccceeccccc", ".bbcccccccw....", "..bbccccc......", ".bbbb..........", "bbb............"],
   life: ["bb.......", ".bcccc...", "bcccccccc", ".bcccc...", "bb......."],
@@ -317,6 +349,7 @@ const ART = {
   birdB: [".............", ".............", "....ooooo....", "..ooooooooo..", "..Eeoooooooo.", "..aaoooooaa..", ".aaa.....aaa.", "aa.........aa", "a...........a"],
   gunner: ["......ggggggg..", "....ggggggggggg", "ssssssggggggggg", "....ggggggggggg", "...gggrrrrggggg", "..gggrEeerrgggg", "...gggrrrrggggg", "....ggggggggggg", "ssssssggggggggg", "....ggggggggggg", "......ggggggg.."],
   charger: ["..........rr.", ".......rrrrr.", "....rrrrrrr..", "..rrrrreerrrr", "rrrrrrreErrro", "..rrrrreerrrr", "....rrrrrrr..", ".......rrrrr.", "..........rr."],
+  mine: ["...y.y.y...", "....nnn....", ".y.nnnnn.y.", "..nnnnnnn..", "ynnnrrrnnny", ".nnnrErnnn.", "ynnnrrrnnny", "..nnnnnnn..", ".y.nnnnn.y.", "....nnn....", "...y.y.y..."],
   rock: ["....ssssss...", "..ssssssssss.", ".sssxsssssss.", "sssssxxssssss", "ssssssssxssss", "sssxsssssssss", "ssssxxsssssss", ".ssssssssxss.", ".sssssssssss.", "..sssssssss..", "....sssss...."],
   pu_spread: [".....cccc", "....c....", "...c.....", "..c......", "ccccccccc", "..c......", "...c.....", "....c....", ".....cccc"],
   pu_bomb: [".......w.", "......y..", "....nny..", "..nnnnnn.", ".nnwnnnnn", ".nwnnnnnn", ".nnnnnnnn", ".nnnnnnnn", "..nnnnnn.", "...nnnn.."],
@@ -325,7 +358,7 @@ const ART = {
 function colorSet(k) {
   const o = {};
   for (const key in ART) o[key] = makeSprite(k === 2 ? scale2x(ART[key]) : ART[key]);
-  o.boss = [makeSprite(bossSaucer(k)), makeSprite(bossCrab(k)), makeSprite(bossSkull(k))];
+  o.boss = [bossSaucer, bossCrab, bossSkull, bossHive, bossDread, bossEye].map(f => makeSprite(f(k)));
   return o;
 }
 
@@ -354,6 +387,7 @@ const MONO = {
   gunner: mono(["...###.", "#######", "..#####", "#######", "...###."]),
   charger: mono(["..##", ".###", "####", ".###", "..##"]),
   rock: mono([".###..", "######", "##.###", "####.#", ".#####", "..##.."]),
+  mine: mono(["#.#.#", ".###.", "##.##", ".###.", "#.#.#"]),
   pu_spread: mono(["..###", ".#...", "#####", ".#...", "..###"]),
   pu_bomb: mono(["...##", ".##..", "####.", "####.", ".##.."]),
   pu_life: mono([".#.#.", "#####", "#####", ".###.", "..#.."]),
@@ -366,6 +400,9 @@ const MONO = {
     mono([".....####.....", "...########...", "..###..#######", ".####..#######", "##############", "#.#.#.#.#.####", "##############", ".############.", "..##########..", "....######...."]),
     mono(["####...........", "#..##..........", "####.#######...", "....##########.", "...####.#######", "..#############", "..#############", "...####.#######", "....##########.", "####.#######...", "#..##..........", "####..........."]),
     mono(["....#######....", "..###########..", ".#############.", "###..#####..###", "###..#####..###", "###############", ".######.######.", "..###########..", "...#.#.#.#.#...", "...#########...", "....#.#.#.#...."]),
+    mono(["....######....", "..##########.#", ".###.####.####", "##############", "#..##########.", "##############", ".###.####.####", "..##########.#", "....######...."]),
+    mono(["......####......", "....########....", "##..##########..", "################", "#.#.#.#.#.#.####", "################", "##..##########..", "....########...."]),
+    mono(["....#####....", "..#########..", ".###########.", "####.....####", "###..###..###", "###.#####.###", "###.#####.###", "###..###..###", "####.....####", ".###########.", "..#########..", "....#####...."]),
   ],
 };
 const FONT5 = {
@@ -382,14 +419,16 @@ const FONT5 = {
 /* =========================================================
    Styles
    ========================================================= */
-const HB_PX = { ship: [3, 2, 10, 5], drone: [1, 1, 9, 6], bird: [2, 2, 9, 5], gunner: [1, 1, 13, 9], charger: [1, 2, 11, 5], rock: [1, 1, 11, 9] };
-const MUZ_PX = [[[11, 6.5], [3, 22]], [[1, 7], [1, 31]], [[15, 16], [29, 16], [22, 28]]];
+const HB_PX = { ship: [3, 2, 10, 5], drone: [1, 1, 9, 6], bird: [2, 2, 9, 5], gunner: [1, 1, 13, 9], charger: [1, 2, 11, 5], rock: [1, 1, 11, 9], mine: [2, 2, 7, 7] };
+const MUZ_PX = [[[11, 6.5], [3, 22]], [[1, 7], [1, 31]], [[15, 16], [29, 16], [22, 28]],
+  [[5, 9], [5, 25], [3, 17]], [[1, 8.5], [1, 18.5], [4, 13.5]], [[15, 20], [22, 2], [22, 38]]];
 const mulHB = k => { const o = {}; for (const a in HB_PX) o[a] = HB_PX[a].map(n => n * k); return o; };
 const mulMuz = k => MUZ_PX.map(list => list.map(([x, y]) => [x * k, y * k]));
 const STYLES = {
   nokia: { key: 'nokia', label: 'Nokia', desc: 'Monochrome LCD', H: 48, s: 1 / 3, hud: 6, lcd: true, spr: MONO,
-    HB: { ship: [1, 1, 5, 3], drone: [0, 0, 5, 5], bird: [0, 0, 6, 4], gunner: [0, 0, 7, 5], charger: [0, 0, 4, 5], rock: [0, 0, 6, 6] },
-    muz: [[[3.5, 2.5], [2, 7.5]], [[0, 1.5], [0, 10.5]], [[4, 4], [12, 4], [7.5, 8.5]]],
+    HB: { ship: [1, 1, 5, 3], drone: [0, 0, 5, 5], bird: [0, 0, 6, 4], gunner: [0, 0, 7, 5], charger: [0, 0, 4, 5], rock: [0, 0, 6, 6], mine: [0, 0, 5, 5] },
+    muz: [[[3.5, 2.5], [2, 7.5]], [[0, 1.5], [0, 10.5]], [[4, 4], [12, 4], [7.5, 8.5]],
+      [[1, 1.5], [1, 7.5], [0, 4.5]], [[0, 2.5], [0, 6.5], [1, 4.5]], [[6.5, 6], [6.5, 0], [6.5, 12]]],
     gunMuz: [0, 2.5], bolt: [1.5, 0.5], orb: [1.5, 1.5], puR: 5 },
   pixel: { key: 'pixel', label: 'Pixel', desc: 'Color pixel art', H: 144, s: 1, hud: 16, lcd: false, spr: colorSet(1),
     HB: HB_PX, muz: MUZ_PX, gunMuz: [5, 5.5], bolt: [4, 1.5], orb: [1.5, 1.5], puR: 12 },
@@ -441,7 +480,14 @@ const SECTORS = [
     planet: { x: 300, y: 38, r: 22, c1: '#ffa071', c2: '#3a0d14', ring: false } },
   { name: 'Bone Field', top: '#03100f', bot: '#0b2a2a', neb: ['rgba(34,209,122,', 'rgba(60,200,255,'], acc: '#9dffcb',
     planet: { x: 340, y: 104, r: 38, c1: '#9be0cd', c2: '#07201e', ring: false } },
+  { name: 'Ion Storm', top: '#030a1a', bot: '#0c2148', neb: ['rgba(60,200,255,', 'rgba(47,88,204,'], acc: '#7ad8ff',
+    planet: { x: 310, y: 44, r: 26, c1: '#8fd3ff', c2: '#08142e', ring: true } },
+  { name: 'Ember Reach', top: '#120804', bot: '#3a1a06', neb: ['rgba(255,122,31,', 'rgba(255,201,60,'], acc: '#ffc27a',
+    planet: { x: 335, y: 108, r: 34, c1: '#ffb36b', c2: '#2a0f04', ring: false } },
+  { name: 'Event Horizon', top: '#040308', bot: '#160b22', neb: ['rgba(192,156,255,', 'rgba(60,230,140,'], acc: '#d9c4ff',
+    planet: { x: 320, y: 72, r: 20, c1: '#f2eaff', c2: '#000000', ring: true } },
 ];
+const STAGES = SECTORS.length;
 const TILE_W = 512;
 const nebCache = [];
 function drawPlanet(g, P) {
@@ -596,6 +642,7 @@ const EDEF = {
   gunner:  { hp: 3, score: 25, speed: 48, pal: 'g', size: 1.4 },
   charger: { hp: 1, score: 15, speed: 36, pal: 'r', size: 1 },
   rock:    { hp: 4, score: 30, speed: 33, pal: 's', size: 1.4 },
+  mine:    { hp: 2, score: 20, speed: 40, pal: 'n', size: 1.2 },
 };
 function spawn(type, y, opts) {
   const d = EDEF[type];
@@ -632,11 +679,28 @@ const WAVES = {
   gunner() { spawn('gunner', rndY(SP.gunner.h), { stopF: rnd(0.64, 0.8), stay: 2.8, fireT: 0.6, st: 'in', ht: 0 }); },
   chargers() { for (let i = 0; i < 3; i++) at(i * 0.7, () => spawn('charger', rndY(SP.charger.h))); },
   rocks() { spawn('rock', rndY(SP.rock.h)); at(1.0, () => spawn('rock', rndY(SP.rock.h))); },
+  mines() {
+    const n = 2 + (G.level >= 7 ? 1 : 0);
+    for (let i = 0; i < n; i++) at(i * 0.8, () => spawnMine(rndY(SP.mine.h)));
+  },
 };
+function spawnMine(y, opts) {
+  return spawn('mine', y, Object.assign({ baseY: y, amp: 3 * s, popF: rnd(0.38, 0.55) }, opts));
+}
+function burstMine(e) {
+  // Unshot mines blow at popF of the screen width into a ring of shots.
+  e.dead = true;
+  explode(e.x + e.sp.w / 2, e.y + e.sp.h / 2, 0.8, 'n');
+  if (G.phase === 'dead') return;
+  const cx = e.x + e.sp.w / 2, cy = e.y + e.sp.h / 2, v = 62 * s * diff(), off = rnd(0, TAU);
+  for (let i = 0; i < 8; i++) { const a = off + i * TAU / 8; shot(cx, cy, Math.cos(a) * v, Math.sin(a) * v); }
+  sfx.eshot();
+}
 const POOL1 = ['line', 'column', 'snake', 'snake', 'gunner'];
 const POOL2 = ['chargers', 'rocks', 'pair'];
+const POOL3 = ['mines', 'mines'];
 function nextWave() {
-  const pool = G.level >= 2 ? POOL1.concat(POOL2) : POOL1;
+  const pool = G.level >= 4 ? POOL1.concat(POOL2, POOL3) : G.level >= 2 ? POOL1.concat(POOL2) : POOL1;
   let k;
   do { k = pool[Math.floor(Math.random() * pool.length)]; } while (k === G.lastWave && Math.random() < 0.8);
   G.lastWave = k;
@@ -660,6 +724,11 @@ function updateEnemies(dt) {
       case 'drone':
       case 'rock':
         e.x -= e.vx * dt; break;
+      case 'mine':
+        e.x -= e.vx * dt;
+        e.y = e.baseY + e.amp * Math.sin(e.t * 3);
+        if (e.x + e.sp.w / 2 < W * e.popF) burstMine(e);
+        break;
       case 'bird':
         e.x -= e.vx * dt;
         e.y = e.baseY + e.amp * Math.sin(e.freq * e.t + e.phase);
@@ -696,12 +765,12 @@ function updateEnemies(dt) {
    Boss
    ========================================================= */
 function spawnBoss() {
-  const kind = (G.level - 1) % 3, cycle = Math.floor((G.level - 1) / 3), sp = SP.boss[kind];
+  const kind = (G.level - 1) % STAGES, cycle = Math.floor((G.level - 1) / STAGES), sp = SP.boss[kind];
   const hp = 30 + 12 * (G.level - 1);
   G.boss = { kind, cycle, sp, x: W + 2 * s, y: TOP + (playH() - sp.h) / 2, hp, maxHp: hp,
     st: 'enter', ft: 0, fireT: 1.0, volley: 0, flash: 0, deadT: 0 };
 }
-const BOSS_PAL = ['p', 'r', 's'];
+const BOSS_PAL = ['p', 'r', 's', 'b', 'o', 'v'];
 function bossFire(b) {
   const rate = 1 + 0.2 * b.cycle + 0.04 * (G.level - 1);
   const v = (114 + 9 * b.cycle) * s, M = ST.muz[b.kind];
@@ -717,7 +786,7 @@ function bossFire(b) {
     shot(b.x + m[0], b.y + m[1], -(v + 18 * s), 0);
     if (b.volley % 6 === 0) spawn('drone', b.y + (b.sp.h - SP.drone.h) / 2, { x: b.x - 4 * s });
     b.fireT = 0.55 / rate;
-  } else {
+  } else if (b.kind === 2) {
     if (b.volley % 4 === 0) {
       const m = M[2], vv = v - 12 * s;
       for (const a of [-0.5, -0.25, 0, 0.25, 0.5]) shot(b.x + m[0], b.y + m[1], -Math.cos(a) * vv, Math.sin(a) * vv);
@@ -726,6 +795,29 @@ function bossFire(b) {
       aimed(b.x + m[0], b.y + m[1], v + 18 * s, 0);
     }
     b.fireT = 0.7 / rate;
+  } else if (b.kind === 3) {
+    // Hive: lays mines from its mouth, pairs of aimed shots in between.
+    if (b.volley % 3 === 0) {
+      const m = M[2];
+      spawnMine(b.y + m[1] - SP.mine.h / 2, { x: b.x + m[0] - SP.mine.w, popF: rnd(0.3, 0.45) });
+    } else for (const m of M.slice(0, 2)) aimed(b.x + m[0], b.y + m[1], v, 0);
+    b.fireT = 0.8 / rate;
+  } else if (b.kind === 4) {
+    // Dreadnought: a main gun sweeping up and down in bursts, side cannons straight ahead.
+    const m = M[2], a = 0.55 * Math.sin(b.volley * 0.5);
+    shot(b.x + m[0], b.y + m[1], -Math.cos(a) * v, Math.sin(a) * v);
+    if (b.volley % 5 === 0) for (const c of M.slice(0, 2)) shot(b.x + c[0], b.y + c[1], -(v + 30 * s), 0);
+    b.fireT = (b.volley % 12 === 0 ? 1.3 : 0.2) / rate;
+  } else {
+    // Void Eye: rotating rings from the pupil, aimed shots from the stalks.
+    if (b.volley % 3 === 0) {
+      const m = M[0], n = 12, off = b.volley * 0.21, vv = v - 30 * s;
+      for (let i = 0; i < n; i++) { const a = off + i * TAU / n; shot(b.x + m[0], b.y + m[1], Math.cos(a) * vv, Math.sin(a) * vv); }
+    } else {
+      const m = M[1 + b.volley % 2];
+      aimed(b.x + m[0], b.y + m[1], v + 18 * s, 0);
+    }
+    b.fireT = 0.75 / rate;
   }
   sfx.eshot();
 }
@@ -754,8 +846,8 @@ function updateBoss(dt) {
   }
   b.ft += dt;
   const mid = TOP + (playH() - b.sp.h) / 2, amp = (playH() - b.sp.h) / 2 - 2 * s;
-  b.y = mid + amp * Math.sin(b.ft * (0.85 + 0.15 * b.cycle));
-  b.x = b.kind === 1 ? tx - 24 * s * (0.5 - 0.5 * Math.cos(b.ft * 0.6)) : tx;
+  b.y = mid + amp * Math.sin(b.ft * (b.kind === 4 ? 0.55 : 0.85) * (1 + 0.15 * b.cycle));
+  b.x = b.kind === 1 || b.kind === 5 ? tx - 24 * s * (0.5 - 0.5 * Math.cos(b.ft * 0.6)) : tx;
   b.fireT -= dt;
   if (b.fireT <= 0 && G.phase !== 'dead') bossFire(b);
 }
@@ -864,7 +956,7 @@ function clearField() {
 function newPlayer(inv) { return { x: 10 * s, y: TOP + (playH() - SP.ship.h) / 2, inv: inv, spread: 0 }; }
 function beginLevel() {
   setPhase('intro');
-  G.sector = (G.level - 1) % 3;
+  G.sector = (G.level - 1) % STAGES;
   G.wavesLeft = Math.min(10 + 2 * G.level, 22); G.waveT = 0.3; G.lastWave = '';
 }
 function startGame() {
@@ -1249,6 +1341,11 @@ function enemyGlow(e) {
       glow(GL.red, cx, cy, (4 + charge * 5) * s, 0.35 + charge * 0.65);
       break;
     }
+    case 'mine': {
+      const near = Math.max(0, 1 - (cx - W * e.popF) / (W * 0.4));
+      glow(GL.red, cx, cy, (3 + 3 * near) * s, Math.floor(G.clock * (4 + 12 * near)) % 2 ? 0.9 : 0.25);
+      break;
+    }
     case 'charger':
       if (e.dashing) glow(GL.orange, e.x + e.sp.w, cy, 8 * s, 0.9);
       else glow(GL.red, e.x + e.sp.w * 0.62, cy, 4.5 * s, 0.55 + 0.4 * Math.sin(G.clock * 22));
@@ -1260,6 +1357,9 @@ function bossGlow(b) {
   const charge = Math.max(0, 1 - b.fireT / 0.32), M = ST.muz[b.kind];
   for (const [mx, my] of M) glow(GL.pink, b.x + mx, b.y + my, (3 + charge * 7) * s, 0.25 + charge * 0.75);
   if (b.kind === 2) for (const [mx, my] of M.slice(0, 2)) glow(GL.green, b.x + mx, b.y + my, 6 * s, 0.55 + 0.25 * Math.sin(G.clock * 5));
+  if (b.kind === 3) glow(GL.cyan, b.x + 9 * s, b.y + 17 * s, 9 * s, 0.4 + 0.2 * Math.sin(G.clock * 4));
+  if (b.kind === 4) for (const [ex, ey] of [[56, 10], [56, 17]]) glow(GL.cyan, b.x + (ex + 4) * s, b.y + ey * s, 6 * s, 0.7);
+  if (b.kind === 5) glow(GL.green, b.x + M[0][0], b.y + M[0][1], 12 * s, 0.35 + 0.25 * Math.sin(G.clock * 3));
   if (b.kind === 0) for (let x = 5; x <= 39; x += 5) glow(GL.yellow, b.x + (x + 1) * s, b.y + 15.5 * s, 2.6 * s, 0.45 + 0.45 * Math.sin(G.clock * 8 + x));
 }
 function drawWorld() {
@@ -1359,13 +1459,13 @@ function drawTitle() {
   spr(SP.ship, t.x, t.y);
   spr(SP.drone, W - 70 * s + Math.sin(G.clock * 1.3) * 6 * s, H * 0.5 + Math.cos(G.clock * 1.7) * 5 * s);
   if (W >= 230 * s) spr(SP.boss[0], W - 56 * s, H * 0.58 + Math.sin(G.clock) * 3 * s);
-  const size = Math.min(22 * s, W / 8.2);
+  const size = Math.min(20 * s, W / 11.5);
   X.font = `700 ${size}px ${FONT}`; X.textAlign = 'center'; X.textBaseline = 'middle';
-  X.fillStyle = 'rgba(8,4,20,0.85)'; X.fillText('VOID LANCE', W / 2, H * 0.24 + 1.5 * s);
+  X.fillStyle = 'rgba(8,4,20,0.85)'; X.fillText('SPACE IMPACT', W / 2, H * 0.24 + 1.5 * s);
   const gr = X.createLinearGradient(W / 2 - 80 * s, 0, W / 2 + 80 * s, 0);
   gr.addColorStop(0, '#5ff3ff'); gr.addColorStop(0.55, '#c09cff'); gr.addColorStop(1, '#ff4fa3');
   X.shadowColor = 'rgba(192,156,255,0.9)'; X.shadowBlur = 10 * s * scale / 4;
-  X.fillStyle = gr; X.fillText('VOID LANCE', W / 2, H * 0.24);
+  X.fillStyle = gr; X.fillText('SPACE IMPACT', W / 2, H * 0.24);
   X.shadowBlur = 0; X.shadowColor = 'rgba(0,0,0,0)';
   txt('Swipe to steer. Tap to fire.', W / 2, H * 0.39, 7 * s, '#cfc8ec');
   if (Math.floor(G.clock * 2.2) % 2 === 0) txt('Tap to start', W / 2, H * 0.68, 10 * s, '#ffffff', 'center', '#3cc8ff');
@@ -1492,8 +1592,8 @@ function lcdRun() {
 }
 function lcdTitle() {
   lcdStars();
-  lctext('VOID', 2, 2);
-  lctext('LANCE', 13, 2);
+  lctext('SPACE', 2, 2);
+  lctext('IMPACT', 13, 2);
   lctext(DF.label.toUpperCase() + ' HI ' + pad5(G.hi), 25);
   if (Math.floor(G.clock * 2.5) % 2 === 0) lctext('TAP TO START', 32);
 }
@@ -1539,6 +1639,7 @@ const LEGEND = [
     ['gunner', 'Turret', ['Stops and fires at you.', 'Stops and fires. Glows first.']],
     ['charger', 'Charger', 'Aims at you, then dashes.'],
     ['rock', 'Rock', 'Slow and tough.'],
+    ['mine', 'Mine', 'Bursts into a ring of shots unless you shoot it first.'],
     ['orb', 'Enemy shot', ['Small cross. Dodge it.', 'Pink orb. Dodge it.']],
     ['bosses', 'Bosses', ['One at the end of every level.', 'One per level. Weapons glow pink just before firing.']],
   ] },
@@ -1592,7 +1693,7 @@ function buildLegend(root) {
     for (const [kind, name, desc] of g.items) {
       const li = document.createElement('li');
       const chip = document.createElement('span'); chip.className = 'chip';
-      if (kind === 'bosses') { li.className = 'span'; for (let i = 0; i < 3; i++) chip.appendChild(makeIcon('boss' + i)); }
+      if (kind === 'bosses') { li.className = 'span'; for (let i = 0; i < SP.boss.length; i++) chip.appendChild(makeIcon('boss' + i)); }
       else chip.appendChild(makeIcon(kind));
       const t = document.createElement('span'); t.className = 'txt';
       const b = document.createElement('b'); b.textContent = name;
@@ -1857,7 +1958,7 @@ window.addEventListener('blur', () => { keys.up = keys.down = false; });
 
 // Read by /fresh.js: an update may only reload the page on the title or
 // game-over screen with the menu closed, never during a run.
-window.__voidLanceQuiet = () => G.mode !== 'run' && sheet.hidden;
+window.__spaceImpactQuiet = () => G.mode !== 'run' && sheet.hidden;
 
 /* =========================================================
    Main loop

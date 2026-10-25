@@ -1,4 +1,4 @@
-# Void Lance
+# Space Impact
 
 Touch-screen side-scrolling shooter in the style of Nokia's Space Impact.
 Deployed to CapRover (captain.timpanini.com) following the timpanini skill's
@@ -42,7 +42,16 @@ https://spaceimpact.jannikarndt.de.
     counts toward the Easy table.
   - Easy = aim assist (`aimAssist` in `stepRun`): eases the ship into a
     target's row; paused while steering input is active (`G.assistHold`).
-  - `window.__voidLanceQuiet` is read by `public/fresh.js`: when a new build
+  - localStorage keys keep the old `voidlance.` prefix (the game was called
+    Void Lance) so existing high scores and settings survive. Don't rename.
+  - Six stages (`STAGES` = `SECTORS.length`): level n uses sector and boss
+    `(n - 1) % STAGES`; each full cycle makes bosses fire faster. A new stage
+    needs a sector, colour boss (`colorSet`), mono boss (`MONO.boss`),
+    muzzles (`MUZ_PX` and nokia `muz`), `BOSS_PAL` entry and a `bossFire`
+    branch.
+  - Enemy types: `EDEF`, sprites in `ART` and `MONO`, hitboxes in `HB_PX`
+    and nokia `HB`, movement in `updateEnemies`, legend in `LEGEND`.
+  - `window.__spaceImpactQuiet` is read by `public/fresh.js`: when a new build
     is live, the page only reloads itself on the title or game-over screen
     with the menu closed.
 - `server/index.mjs`: dependency-free Node server.
@@ -58,7 +67,5 @@ https://spaceimpact.jannikarndt.de.
   `CAPROVER_APP`, `CAPROVER_APP_TOKEN` and variable `APP_URL`.
 - `scripts/caprover-app.sh`: registers the app on CapRover and mints the
   deploy token.
-- `scripts/connect-domain.sh`: adds the custom domain, gets its certificate
-  and forces HTTPS.
 - `caprover api` quirk: a call without `-d` opens an interactive prompt and
   fails non-interactively; always pass `-d` (use `'{}'` for GET).

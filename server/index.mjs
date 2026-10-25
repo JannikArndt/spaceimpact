@@ -1,4 +1,4 @@
-// Minimal static server for Void Lance. No dependencies.
+// Minimal static server for Space Impact. No dependencies.
 // Serves an allowlist of files from public/, stamps the build id into the
 // HTML (<!--BUILD--> placeholder) for public/fresh.js, and answers
 // GET /version for both fresh.js and the deploy workflow.
@@ -72,7 +72,7 @@ export function createApp() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const port = Number(process.env.PORT) || 80;
   const server = createApp().listen(port, () => {
-    console.log(`Void Lance listening on :${port}, build ${versionPayload().build}`);
+    console.log(`Space Impact listening on :${port}, build ${versionPayload().build}`);
   });
   const stop = () => server.close(() => process.exit(0));
   process.on("SIGTERM", stop);

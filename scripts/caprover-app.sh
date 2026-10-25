@@ -102,7 +102,7 @@ fi
 
 # --- one partial update: token, port, volume, all in a single PATCH --------
 # PATCH /update/ merges into the existing app config (unlike POST /update/,
-# which replaces it wholesale) — see references/caprover-api.md. That's the
+# which replaces it wholesale; see the timpanini skill's caprover-api notes). That's the
 # whole reason this script is safe to re-run against a hand-configured app
 # without clobbering settings it didn't touch.
 patch_body="$(node -e '

@@ -23,7 +23,7 @@ test("serves the game with the build id stamped in", () =>
     const html = await res.text();
     assert.ok(html.includes(`<meta name="app-build" content="${buildId()}">`));
     assert.ok(!html.includes("<!--BUILD-->"));
-    assert.ok(html.includes("window.__voidLanceQuiet"));
+    assert.ok(html.includes("window.__spaceImpactQuiet"));
   }));
 
 test("/version reports the same build CI computes", () =>

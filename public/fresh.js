@@ -1,7 +1,7 @@
 // Client-side auto-update, adapted from the timpanini skill's fresh.js.
 // Notices a new build is live and reloads, but only at a safe moment:
 // never mid-game, never with the menu open, never in the first 20 seconds,
-// never twice. The game defines "safe" via window.__voidLanceQuiet().
+// never twice. The game defines "safe" via window.__spaceImpactQuiet().
 
 (() => {
   const MIN_PAGE_AGE_MS = 20_000;
@@ -17,7 +17,7 @@
     // Title screen or game-over screen, menu closed. A paused run is not
     // quiet: reloading would throw the run away.
     try {
-      return typeof window.__voidLanceQuiet === "function" ? !!window.__voidLanceQuiet() : true;
+      return typeof window.__spaceImpactQuiet === "function" ? !!window.__spaceImpactQuiet() : true;
     } catch {
       return false;
     }

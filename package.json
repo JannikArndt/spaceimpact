@@ -2,7 +2,7 @@
   "name": "spaceimpact",
   "version": "1.0.0",
   "private": true,
-  "description": "Void Lance: a touch-screen side-scrolling shooter with Nokia, Pixel and HD graphics",
+  "description": "Space Impact: a touch-screen side-scrolling shooter with Nokia, Pixel and HD graphics",
   "type": "module",
   "scripts": {
     "start": "node server/index.mjs",

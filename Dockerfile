@@ -1,4 +1,4 @@
-# Void Lance: a static single-page game plus a tiny dependency-free Node
+# Space Impact: a static single-page game plus a tiny dependency-free Node
 # server that stamps the build id into the page and answers GET /version.
 # No npm dependencies, so there is no install or build stage.
 #

@@ -1,4 +1,4 @@
-# Void Lance
+# Space Impact
 
 A touch-screen side-scrolling shooter in the spirit of the old Nokia phone
 games, with three graphics styles: Nokia (monochrome LCD), Pixel and HD.
@@ -20,7 +20,6 @@ W/S to move, Space to fire, P to pause, Esc for the menu.
 | `server/buildid.mjs` | Hash over everything that ships (`package.json`, `public/`, `server/`) |
 | `test/` | `node --test` checks for the server |
 | `scripts/caprover-app.sh` | One-time: registers the CapRover app and mints the deploy token |
-| `scripts/connect-domain.sh` | One-time: attaches the custom domain, gets its certificate, forces HTTPS |
 
 ## Run locally
 
