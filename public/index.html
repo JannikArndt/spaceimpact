@@ -115,7 +115,28 @@ canvas.ic{display:block;image-rendering:pixelated}
 .row h3{margin:0}
 .toggle{min-width:76px;height:36px;border-radius:999px;border:0;cursor:pointer;touch-action:manipulation;background:var(--btn-bg);color:var(--ink);font:700 13px "Silkscreen",ui-monospace,Menlo,monospace}
 .toggle[aria-checked="true"]{background:var(--pickup);color:#fff}
-.btn:focus-visible,.toggle:focus-visible,.style-opt:focus-visible,.close:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.seg{display:flex;gap:2px;padding:3px;border-radius:999px;background:var(--btn-bg)}
+.seg button{min-height:32px;border:0;border-radius:999px;padding:0 12px;cursor:pointer;touch-action:manipulation;background:transparent;color:var(--ink);font:700 12px "Silkscreen",ui-monospace,Menlo,monospace}
+.seg button[aria-checked="true"]{background:var(--ink);color:var(--card)}
+.board{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:2px}
+.board li{display:grid;grid-template-columns:2.4em minmax(0,1fr) auto 3.2em 36px;align-items:center;gap:8px;min-height:38px;padding:0 2px 0 8px;border-radius:10px;font-size:14px}
+.board li:nth-child(odd){background:var(--btn-bg)}
+.board li.me{box-shadow:inset 0 0 0 2px var(--focus)}
+.board .rk,.board .sc{font-family:"Silkscreen",ui-monospace,monospace}
+.board .rk{color:var(--muted)}
+.board .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board .nm.anon{color:var(--muted)}
+.board .lv{font-size:12px;color:var(--muted);text-align:right}
+.board.ro li{grid-template-columns:2.4em minmax(0,1fr) auto 3.2em}
+.edit{width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0;touch-action:manipulation}
+.edit svg{width:16px;height:16px}
+.sheet.name{z-index:21}
+.name-card{max-width:440px}
+.name-card h2{margin:6px 0 4px;font-family:"Silkscreen",ui-monospace,monospace;font-size:18px;font-weight:700}
+.name-card label{display:block;margin:14px 0 6px;font-family:"Silkscreen",ui-monospace,monospace;font-size:13px}
+.name-card input{width:100%;min-height:44px;border-radius:12px;border:1.5px solid var(--edge);background:var(--page);color:var(--ink);padding:0 12px;font:700 16px "Silkscreen",ui-monospace,Menlo,monospace;-webkit-user-select:text;user-select:text}
+.name-card .menu-actions{margin:14px 0 4px}
+.btn:focus-visible,.toggle:focus-visible,.seg button:focus-visible,.edit:focus-visible,.name-card input:focus-visible,.style-opt:focus-visible,.close:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -157,6 +178,14 @@ canvas.ic{display:block;image-rendering:pixelated}
         <div class="styles two" id="diffOpts" role="radiogroup" aria-label="Difficulty"></div>
         <p class="note">Applies immediately. Each difficulty keeps its own high score.</p>
       </section>
+      <section class="opt">
+        <div class="row">
+          <h3>High scores</h3>
+          <div class="seg" id="boardTabs" role="radiogroup" aria-label="High score board"></div>
+        </div>
+        <ol class="board" id="boardList" aria-label="Top 10"></ol>
+        <p class="note" id="boardEmpty">No scores yet. Make the top 10 to add your name.</p>
+      </section>
       <section class="opt row">
         <h3 class="px">Sound</h3>
         <button class="toggle" id="soundToggle" type="button" role="switch" aria-checked="true">On</button>
@@ -164,6 +193,21 @@ canvas.ic{display:block;image-rendering:pixelated}
       <div class="legend" id="legendSheet"></div>
     </div>
   </div>
+</div>
+<div class="sheet name" id="nameSheet" hidden>
+  <form class="card name-card" id="nameForm" role="dialog" aria-modal="true" aria-labelledby="nameTitle" autocomplete="off">
+    <div class="card-body">
+      <h2 id="nameTitle">Top 10!</h2>
+      <p class="note" id="nameMsg"></p>
+      <label for="nameInput">Your name</label>
+      <input id="nameInput" type="text" maxlength="12" placeholder="PLAYER" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done">
+      <div class="menu-actions">
+        <button class="btn primary" type="submit">Save</button>
+        <button class="btn ghost" id="nameCancel" type="button">Skip</button>
+      </div>
+      <ol class="board ro" id="nameBoard" aria-label="Top 10"></ol>
+    </div>
+  </form>
 </div>
 <script>
 (() => {
@@ -440,13 +484,37 @@ let ST, SP, W = 256, H = 144, TOP = 16, s = 1;
 function applyStyle(key) { ST = STYLES[key] || STYLES.hd; SP = ST.spr; H = ST.H; TOP = ST.hud; s = ST.s; }
 applyStyle(loadStr('voidlance.style') || 'hd');
 const DIFFS = {
-  normal: { key: 'normal', label: 'Normal', desc: 'The classic game', hiKey: 'voidlance.hi' },
-  easy: { key: 'easy', label: 'Easy', desc: 'Aim assist snaps your ship to enemy rows', hiKey: 'voidlance.hi.easy' },
+  normal: { key: 'normal', label: 'Normal', desc: 'The classic game', hiKey: 'voidlance.hi', boardKey: 'voidlance.board' },
+  easy: { key: 'easy', label: 'Easy', desc: 'Aim assist snaps your ship to enemy rows', hiKey: 'voidlance.hi.easy', boardKey: 'voidlance.board.easy' },
 };
 const DIFF_KEYS = ['normal', 'easy'];
 let DF = DIFFS[loadStr('voidlance.difficulty')] || DIFFS.normal;
 // Kept in memory too, so high scores survive the session without localStorage.
 const HIS = { normal: loadNum(DIFFS.normal.hiKey), easy: loadNum(DIFFS.easy.hiKey) };
+// Top-10 boards, one per difficulty, kept in this browser only.
+const BOARD_N = 10, NAME_MAX = 12, NAME_DEFAULT = 'PLAYER';
+const cleanName = v => Array.from(String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g, '').trim()).slice(0, NAME_MAX).join('');
+function loadBoard(d) {
+  let list = [];
+  try { const v = JSON.parse(loadStr(DIFFS[d].boardKey) || '[]'); if (Array.isArray(v)) list = v; } catch (e) {}
+  list = list.filter(r => r && Number.isFinite(r.score) && r.score > 0)
+    .map(r => ({ name: cleanName(r.name), score: Math.floor(r.score), level: Math.max(0, r.level | 0), at: +r.at || 0 }))
+    .sort((a, b) => b.score - a.score || a.at - b.at).slice(0, BOARD_N);
+  // A high score from before the board existed joins it without a name.
+  if (!list.length && HIS[d] > 0) list.push({ name: '', score: HIS[d], level: 0, at: 0 });
+  return list;
+}
+const BOARDS = { normal: loadBoard('normal'), easy: loadBoard('easy') };
+for (const d of DIFF_KEYS) if (BOARDS[d].length) HIS[d] = Math.max(HIS[d], BOARDS[d][0].score);
+const saveBoard = d => saveStr(DIFFS[d].boardKey, JSON.stringify(BOARDS[d]));
+// Index a score would take on board d, or -1 if it doesn't make the top 10. Ties go to the earlier run.
+function boardSlot(d, score) {
+  const b = BOARDS[d];
+  if (!(score > 0)) return -1;
+  let i = 0;
+  while (i < b.length && b[i].score >= score) i++;
+  return i < BOARD_N ? i : -1;
+}
 function withStyle(key, fn) { const prev = ST.key; applyStyle(key); try { fn(); } finally { applyStyle(prev); } }
 
 const PU = {
@@ -617,7 +685,7 @@ function vibrate(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch
    ========================================================= */
 const G = {
   mode: 'title', phase: '', phaseT: 0, paused: false, clock: 0,
-  t: 0, level: 1, score: 0, hi: HIS[DF.key], newHi: false, runEasy: false, lives: 3, nextLife: 1500,
+  t: 0, level: 1, score: 0, hi: HIS[DF.key], newHi: false, rank: 0, pendingName: null, runEasy: false, lives: 3, nextLife: 1500,
   player: null, enemies: [], pb: [], eb: [], pups: [], parts: [], rings: [], pops: [], booms: [], queue: [],
   boss: null, wavesLeft: 0, waveT: 0, lastWave: '', kills: 0, overT: 0, fireCd: 0, dragDy: 0,
   shake: 0, flashA: 0, hurtA: 0, sector: 0, bgScroll: 0, assistHold: 0, aimKey: null, aimY: 0,
@@ -963,6 +1031,7 @@ function startGame() {
   G.mode = 'run'; G.paused = false; G.level = 1; G.score = 0; G.lives = 3; G.nextLife = 1500;
   G.kills = 0; G.t = 0; G.dragDy = 0; G.fireCd = 0; G.flashA = 0; G.hurtA = 0;
   G.runEasy = DF.key === 'easy'; G.assistHold = 0; G.aimKey = null;
+  G.rank = 0; G.pendingName = null;
   clearField();
   G.player = newPlayer(2.0);
   beginLevel(); sfx.start(); updateUI();
@@ -975,6 +1044,15 @@ function gameOver() {
   if (beat) { HIS[board.key] = G.score; saveStr(board.hiKey, G.score); }
   G.newHi = beat && board === DF;
   G.hi = HIS[DF.key];
+  const slot = boardSlot(board.key, G.score);
+  G.rank = slot + 1; G.pendingName = null;
+  if (slot >= 0) {
+    const entry = { name: cleanName(loadStr('voidlance.name')) || NAME_DEFAULT, score: G.score, level: G.level, at: Date.now() };
+    BOARDS[board.key].splice(slot, 0, entry);
+    BOARDS[board.key].length = Math.min(BOARDS[board.key].length, BOARD_N);
+    saveBoard(board.key);
+    G.pendingName = { d: board.key, entry };
+  }
   clearField(); sfx.over(); updateUI();
 }
 function fire() {
@@ -991,7 +1069,7 @@ function fire() {
 }
 function onTap() {
   if (G.mode === 'title') { startGame(); return; }
-  if (G.mode === 'over') { if (G.overT > 0.9) startGame(); return; }
+  if (G.mode === 'over') { if (G.overT > 0.9 && !G.pendingName && nameSheet.hidden) startGame(); return; }
   if (G.paused) { setPaused(false); return; }
   fire();
 }
@@ -1214,7 +1292,11 @@ function step(dt) {
   updateStars(dt);
   if (G.mode === 'run') stepRun(dt);
   else {
-    if (G.mode === 'over') G.overT += dt;
+    if (G.mode === 'over') {
+      G.overT += dt;
+      // Ask for a name once the game-over moment has landed, so a late fire tap can't dismiss it.
+      if (G.pendingName && G.overT > 0.8) { const pn = G.pendingName; G.pendingName = null; openNamePrompt(pn.d, pn.entry, true); }
+    }
     if (G.mode === 'title') { const t = titleShip(); emitExhaust(t.x, t.y + SP.ship.h / 2); }
   }
   updateFx(dt);
@@ -1477,6 +1559,7 @@ function drawOver() {
   txt('GAME OVER', W / 2, H * 0.32, Math.min(18 * s, W / 7.5), '#ffffff', 'center', '#ff3d5a', true);
   txt('SCORE ' + pad5(G.score), W / 2, H * 0.5, 9 * s, '#ffffff');
   if (G.newHi) { if (Math.floor(G.clock * 3) % 2 === 0) txt('New high score', W / 2, H * 0.61, 8 * s, '#ffc93c', 'center', '#ffc93c'); }
+  else if (G.rank) txt('TOP 10   #' + G.rank, W / 2, H * 0.61, 8 * s, '#ffe08a');
   else txt(DF.label.toUpperCase() + '   HI ' + pad5(G.hi), W / 2, H * 0.61, 8 * s, '#a9a1cf');
   if (G.overT > 0.9 && Math.floor(G.clock * 2.2) % 2 === 0) txt('Tap to retry', W / 2, H * 0.8, 9 * s, '#ffffff', 'center', '#3cc8ff');
 }
@@ -1602,6 +1685,7 @@ function lcdOver() {
   lctext('GAME OVER', 4, 2);
   lctext('SCORE ' + pad5(G.score), 18);
   if (G.newHi) { if (Math.floor(G.clock * 3) % 2 === 0) lctext('NEW HI', 26); }
+  else if (G.rank) lctext('TOP 10 #' + G.rank, 26);
   else lctext(DF.label.toUpperCase() + ' HI ' + pad5(G.hi), 26);
   if (G.overT > 0.9 && Math.floor(G.clock * 2.5) % 2 === 0) lctext('TAP TO RETRY', 37);
 }
@@ -1773,6 +1857,85 @@ for (const key of DIFF_KEYS) {
   diffOpts.appendChild(ob); diffButtons.push(ob);
 }
 
+/* High score boards: the menu shows one difficulty at a time; every row can be renamed. */
+const boardTabs = document.getElementById('boardTabs');
+const boardList = document.getElementById('boardList');
+const boardEmpty = document.getElementById('boardEmpty');
+const nameSheet = document.getElementById('nameSheet');
+const nameForm = document.getElementById('nameForm');
+const nameTitle = document.getElementById('nameTitle');
+const nameMsg = document.getElementById('nameMsg');
+const nameInput = document.getElementById('nameInput');
+const nameCancel = document.getElementById('nameCancel');
+const nameBoard = document.getElementById('nameBoard');
+const PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>';
+let boardView = DF.key, naming = null;
+const boardTabButtons = [];
+for (const key of DIFF_KEYS) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.setAttribute('role', 'radio'); b.dataset.diff = key; b.textContent = DIFFS[key].label;
+  b.addEventListener('click', () => { boardView = key; renderBoards(); });
+  boardTabs.appendChild(b); boardTabButtons.push(b);
+}
+function fillBoard(ol, d, mark, editable) {
+  ol.textContent = '';
+  BOARDS[d].forEach((r, i) => {
+    const li = document.createElement('li');
+    if (r === mark) li.className = 'me';
+    const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = '#' + (i + 1);
+    const nm = document.createElement('span'); nm.className = r.name ? 'nm' : 'nm anon'; nm.textContent = r.name || 'Unnamed';
+    const sc = document.createElement('span'); sc.className = 'sc'; sc.textContent = pad5(r.score);
+    const lv = document.createElement('span'); lv.className = 'lv'; lv.textContent = r.level ? 'Lv ' + r.level : '';
+    li.append(rk, nm, sc, lv);
+    if (editable) {
+      const eb = document.createElement('button');
+      eb.type = 'button'; eb.className = 'edit'; eb.innerHTML = PENCIL;
+      eb.setAttribute('aria-label', 'Rename #' + (i + 1) + ' (' + (r.name || 'unnamed') + ')');
+      eb.addEventListener('click', () => openNamePrompt(d, r, false));
+      li.appendChild(eb);
+    }
+    ol.appendChild(li);
+  });
+}
+function renderBoards() {
+  for (const b of boardTabButtons) b.setAttribute('aria-checked', b.dataset.diff === boardView ? 'true' : 'false');
+  fillBoard(boardList, boardView, null, true);
+  boardList.hidden = !BOARDS[boardView].length;
+  boardEmpty.hidden = !boardList.hidden;
+}
+function openNamePrompt(d, entry, fresh) {
+  if (BOARDS[d].indexOf(entry) < 0) return;
+  naming = { d, entry, fresh };
+  const rank = BOARDS[d].indexOf(entry) + 1;
+  nameTitle.textContent = fresh ? (rank === 1 ? 'New high score!' : 'Top 10!') : 'Rename';
+  nameMsg.textContent = '#' + rank + ' on the ' + DIFFS[d].label + ' board with ' + pad5(entry.score) + (entry.level ? ', level ' + entry.level : '') + '.';
+  nameCancel.textContent = fresh ? 'Skip' : 'Cancel';
+  nameInput.value = entry.name;
+  fillBoard(nameBoard, d, entry, false);
+  nameSheet.hidden = false;
+  keys.up = keys.down = false;
+  nameInput.focus(); nameInput.select();
+  updateUI();
+}
+function closeNamePrompt(save) {
+  if (!naming) return;
+  const { d, entry, fresh } = naming;
+  naming = null;
+  if (save) {
+    entry.name = cleanName(nameInput.value) || NAME_DEFAULT;
+    if (fresh) saveStr('voidlance.name', entry.name);
+    saveBoard(d);
+  }
+  nameSheet.hidden = true;
+  boardView = d; renderBoards();
+  if (!sheet.hidden) closeSheet.focus();
+  else if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  updateUI();
+}
+nameForm.addEventListener('submit', e => { e.preventDefault(); closeNamePrompt(true); });
+nameCancel.addEventListener('click', () => closeNamePrompt(false));
+nameSheet.addEventListener('click', e => { if (e.target === nameSheet) closeNamePrompt(false); });
+
 /* =========================================================
    Layout
    ========================================================= */
@@ -1879,9 +2042,10 @@ function setDifficulty(key) {
   saveStr('voidlance.difficulty', key);
   G.hi = HIS[DF.key]; G.newHi = false; G.aimKey = null;
   if (G.mode === 'run' && key === 'easy') G.runEasy = true;
+  boardView = key; renderBoards();
   updateUI();
 }
-function openMenu() { setPaused(true); sheet.hidden = false; updateUI(); closeSheet.focus(); }
+function openMenu() { setPaused(true); boardView = DF.key; renderBoards(); sheet.hidden = false; updateUI(); closeSheet.focus(); }
 function hideMenu() { sheet.hidden = true; updateUI(); menuBtn.focus(); }
 menuBtn.addEventListener('click', () => { initAudio(); openMenu(); });
 closeSheet.addEventListener('click', hideMenu);
@@ -1905,7 +2069,7 @@ const ptrs = new Map();
 let steerId = null;
 const ignoreTarget = t => !!(t && t.closest && (t.closest('button') || t.closest('.sheet') || t.closest('.pick')));
 window.addEventListener('pointerdown', e => {
-  if (ignoreTarget(e.target) || !sheet.hidden) return;
+  if (ignoreTarget(e.target) || !sheet.hidden || !nameSheet.hidden) return;
   initAudio();
   ptrs.set(e.pointerId, { x0: e.clientX, y0: e.clientY, ly: e.clientY, t0: performance.now(), moved: false });
   if (steerId === null) steerId = e.pointerId;
@@ -1937,6 +2101,7 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 
 window.addEventListener('keydown', e => {
   const k = e.key;
+  if (!nameSheet.hidden) { if (k === 'Escape') { closeNamePrompt(false); e.preventDefault(); } return; }
   if (!sheet.hidden) { if (k === 'Escape') { hideMenu(); e.preventDefault(); } return; }
   if (k === 'ArrowUp' || k === 'w' || k === 'W') keys.up = true;
   else if (k === 'ArrowDown' || k === 's' || k === 'S') keys.down = true;
@@ -1958,7 +2123,7 @@ window.addEventListener('blur', () => { keys.up = keys.down = false; });
 
 // Read by /fresh.js: an update may only reload the page on the title or
 // game-over screen with the menu closed, never during a run.
-window.__spaceImpactQuiet = () => G.mode !== 'run' && sheet.hidden;
+window.__spaceImpactQuiet = () => G.mode !== 'run' && sheet.hidden && nameSheet.hidden && !G.pendingName;
 
 /* =========================================================
    Main loop
@@ -1980,6 +2145,7 @@ function frameLoop(now) {
 }
 resize();
 rebuildLegends();
+renderBoards();
 updateUI();
 resize();
 requestAnimationFrame(frameLoop);

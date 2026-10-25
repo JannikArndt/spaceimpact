@@ -40,6 +40,13 @@ https://spaceimpact.jannikarndt.de.
   - High scores are per difficulty (`HIS`): `voidlance.hi` (normal),
     `voidlance.hi.easy`. A run that used Easy at any point (`G.runEasy`)
     counts toward the Easy table.
+  - Top-10 boards per difficulty (`BOARDS`), browser-local only: localStorage
+    `voidlance.board` / `voidlance.board.easy` (JSON `[{name, score, level,
+    at}]`). `gameOver` inserts a qualifying run under the last used name
+    (`voidlance.name`, default `PLAYER`) and sets `G.pendingName`; `step`
+    opens the name dialog (`#nameSheet`, `openNamePrompt`) 0.8 s later. The
+    menu's "High scores" section lists the boards; any row can be renamed. An
+    old `voidlance.hi` without a board shows up as an unnamed entry.
   - Easy = aim assist (`aimAssist` in `stepRun`): eases the ship into a
     target's row; paused while steering input is active (`G.assistHold`).
   - localStorage keys keep the old `voidlance.` prefix (the game was called
