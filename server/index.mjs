@@ -36,7 +36,10 @@ export function createApp() {
   }
 
   return createServer((req, res) => {
-    const { pathname } = new URL(req.url, "http://localhost");
+    // Not new URL(req.url, base): for "//version" that parses "version" as a
+    // host name and serves the page instead (a trailing slash in APP_URL
+    // produces exactly that request).
+    const pathname = req.url.split("?")[0].replace(/^\/{2,}/, "/");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
 

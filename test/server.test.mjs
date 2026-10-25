@@ -69,3 +69,10 @@ test("unknown paths and methods are rejected", () =>
     assert.equal(post.status, 405);
     await post.text();
   }));
+
+test("//version answers like /version (a trailing slash in APP_URL produces it)", () =>
+  withServer(async (base) => {
+    const res = await fetch(base + "//version");
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).build, buildId());
+  }));
