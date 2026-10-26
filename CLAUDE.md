@@ -54,6 +54,12 @@ Follows the app-conventions skill (claude-skills repo).
     opens the name dialog (`#nameSheet`, `openNamePrompt`) 0.8 s later. The
     menu's "High scores" section lists the boards; any row can be renamed. An
     old `voidlance.hi` without a board shows up as an unnamed entry.
+  - World boards (`GLOBAL`, served by `server/scores.mjs`): `startGame` asks
+    `POST /api/run` for a signed run token, `gameOver` posts the result with
+    it (`submitGlobal`). Entries this browser submitted are kept with their
+    edit key in localStorage `voidlance.global` (`MINE`) and can be renamed
+    (`PATCH /api/scores/<id>`); a local entry carries its world id as `gid`.
+    A run that is only in the world top 10 still gets the name dialog.
   - Easy = aim assist (`aimAssist` in `stepRun`): eases the ship into a
     target's row; paused while steering input is active (`G.assistHold`).
   - localStorage keys keep the old `voidlance.` prefix (the game was called
@@ -72,6 +78,8 @@ Follows the app-conventions skill (claude-skills repo).
   - Serves only the files listed in `ROUTES` from `public/`.
   - Stamps the build id into the HTML at `<!--BUILD-->`.
   - Answers `GET /version`.
+  - Hosts the world high score API under `/api` (JSON bodies only, 2 KB max,
+    rate-limited per `X-Real-IP`).
   - Any new file in `public/` must be added to `ROUTES` and to the asset test.
 - `server/buildid.mjs`: hash over `INPUTS` (Dockerfile, package.json,
   package-lock.json, `server/`, `public/`, minus `*.md`). The Dockerfile
@@ -79,11 +87,22 @@ Follows the app-conventions skill (claude-skills repo).
   `server/version.mjs` reads it (computes it when the file is missing,
   e.g. locally). `test/deploy-contract.test.mjs` keeps Dockerfile,
   `.dockerignore` and `INPUTS` in step.
-- `test/`: `server.test.mjs` (server, routes, `/version`, `//version`) and
-  `deploy-contract.test.mjs` (deploy conventions: pins, permissions,
-  timeouts, documented scripts). Run with `npm test`.
+- `server/scores.mjs`: world top 100 per difficulty in
+  `$DATA_DIR/scores.json` (`DATA_DIR=/data`, a CapRover persistent directory
+  mapped to volume `spaceimpact-data`; without `DATA_DIR` scores stay in
+  memory). The HMAC key for run tokens is `$DATA_DIR/secret.key`.
+  Submissions are checked against the run token's age: `minSeconds(level)`
+  and `maxScore(level, seconds)` mirror the game's rules (waves per level,
+  wave timer, enemy scores, pickups, boss bonus and boss minions). Any change
+  to scoring or level pacing in `public/index.html` must be reflected there,
+  or real runs get rejected.
+- `test/`: `server.test.mjs` (server, routes, `/version`, `//version`),
+  `scores.test.mjs` (world high scores: tokens, plausibility bounds,
+  persistence, API) and `deploy-contract.test.mjs` (deploy conventions:
+  pins, permissions, timeouts, documented scripts). Run with `npm test`.
 - `Dockerfile`: one stage, `node:24-alpine` by digest, runs as `node`, with
-  a `HEALTHCHECK` on `/version`.
+  a `HEALTHCHECK` on `/version`. Creates `/data` owned by `node` so the
+  persistent volume is writable.
 - `.github/workflows/deploy.yml`: push to `main` → verify → `caprover
   deploy` → waits until `/version` reports this build (falls back to
   https://spaceimpact.timpanini.com when the `APP_URL` variable is unset).

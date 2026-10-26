@@ -1,5 +1,6 @@
 # Space Impact: a static single-page game plus a tiny dependency-free Node
-# server that stamps the build id into the page and answers GET /version.
+# server that stamps the build id into the page, answers GET /version and
+# keeps the world high scores.
 # No npm dependencies, so nothing to install and nothing to build: one stage.
 #
 # Base image pinned by digest; Dependabot (.github/dependabot.yml) proposes
@@ -16,6 +17,11 @@ COPY public ./public
 # Stamped at image build with the same script CI runs, so /version and the
 # deploy workflow agree by construction.
 RUN node server/buildid.mjs > BUILD_ID
+# World high scores live in /data, a CapRover persistent directory. Docker
+# gives a new, empty volume the owner of the image's directory, so create it
+# here for the unprivileged user.
+RUN mkdir -p /data && chown node:node /data
+ENV DATA_DIR=/data
 USER node
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

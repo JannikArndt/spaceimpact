@@ -1,5 +1,5 @@
-// GET /version payload. Stateless app (high scores and settings live in each
-// browser's localStorage), so no `schema` field.
+// GET /version payload. No `schema` field: the only server-side state is
+// DATA_DIR/scores.json, which scores.mjs validates entry by entry on load.
 //
 // The build id comes from BUILD_ID, which the Dockerfile writes at image
 // build time with the same `node server/buildid.mjs` CI runs. Without the

@@ -128,6 +128,7 @@ canvas.ic{display:block;image-rendering:pixelated}
 .board .nm.anon{color:var(--muted)}
 .board .lv{font-size:12px;color:var(--muted);text-align:right}
 .board.ro li{grid-template-columns:2.4em minmax(0,1fr) auto 3.2em}
+.seg.scope{margin-top:8px;width:max-content}
 .edit{width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0;touch-action:manipulation}
 .edit svg{width:16px;height:16px}
 .sheet.name{z-index:21}
@@ -183,6 +184,7 @@ canvas.ic{display:block;image-rendering:pixelated}
           <h3>High scores</h3>
           <div class="seg" id="boardTabs" role="radiogroup" aria-label="High score board"></div>
         </div>
+        <div class="seg scope" id="scopeTabs" role="radiogroup" aria-label="Which scores"></div>
         <ol class="board" id="boardList" aria-label="Top 10"></ol>
         <p class="note" id="boardEmpty">No scores yet. Make the top 10 to add your name.</p>
       </section>
@@ -457,7 +459,7 @@ const FONT5 = {
   M:[5,7,7,5,5],N:[6,5,5,5,5],O:[2,5,5,5,2],P:[6,5,6,4,4],Q:[2,5,5,6,3],R:[6,5,6,5,5],
   S:[3,4,2,1,6],T:[7,2,2,2,2],U:[5,5,5,5,7],V:[5,5,5,5,2],W:[5,5,7,7,5],X:[5,5,2,5,5],
   Y:[5,5,2,2,2],Z:[7,1,2,4,7],' ':[0,0,0,0,0],'+':[0,2,7,2,0],'-':[0,0,7,0,0],
-  ':':[0,2,0,2,0],'.':[0,0,0,0,2],'!':[2,2,2,0,2]
+  ':':[0,2,0,2,0],'.':[0,0,0,0,2],'!':[2,2,2,0,2],'#':[5,7,5,7,5]
 };
 
 /* =========================================================
@@ -498,7 +500,8 @@ function loadBoard(d) {
   let list = [];
   try { const v = JSON.parse(loadStr(DIFFS[d].boardKey) || '[]'); if (Array.isArray(v)) list = v; } catch (e) {}
   list = list.filter(r => r && Number.isFinite(r.score) && r.score > 0)
-    .map(r => ({ name: cleanName(r.name), score: Math.floor(r.score), level: Math.max(0, r.level | 0), at: +r.at || 0 }))
+    .map(r => ({ name: cleanName(r.name), score: Math.floor(r.score), level: Math.max(0, r.level | 0), at: +r.at || 0,
+      gid: typeof r.gid === 'string' ? r.gid : undefined }))
     .sort((a, b) => b.score - a.score || a.at - b.at).slice(0, BOARD_N);
   // A high score from before the board existed joins it without a name.
   if (!list.length && HIS[d] > 0) list.push({ name: '', score: HIS[d], level: 0, at: 0 });
@@ -514,6 +517,65 @@ function boardSlot(d, score) {
   let i = 0;
   while (i < b.length && b[i].score >= score) i++;
   return i < BOARD_N ? i : -1;
+}
+
+/* Global high scores (server/scores.mjs). Each run gets a signed token when it starts; the
+   server checks the final score against how long the run took. Entries this browser
+   submitted are remembered with their edit key so they can be renamed. */
+const MINE_KEY = 'voidlance.global';
+let MINE = {};
+try { const v = JSON.parse(loadStr(MINE_KEY) || '{}'); if (v && typeof v === 'object' && !Array.isArray(v)) MINE = v; } catch (e) {}
+function saveMine() {
+  const ids = Object.keys(MINE);
+  for (const id of ids.slice(0, Math.max(0, ids.length - 200))) delete MINE[id];
+  saveStr(MINE_KEY, JSON.stringify(MINE));
+}
+// Top 10 per difficulty as last fetched; null until loaded.
+const GLOBAL = { normal: null, easy: null }, globalAt = { normal: 0, easy: 0 }, globalBusy = {}, globalErr = {};
+function api(path, method, body) {
+  const init = body ? { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : { cache: 'no-store' };
+  return fetch('/api/' + path, init).then(r => r.json().catch(() => ({})).then(j => r.ok ? j : Promise.reject(j)));
+}
+function fetchGlobal(d) {
+  if (globalBusy[d] || Date.now() - globalAt[d] < 15000) return;
+  globalBusy[d] = true;
+  api('scores?diff=' + d).then(j => { GLOBAL[d] = j.entries; globalErr[d] = false; globalAt[d] = Date.now(); },
+    () => { globalErr[d] = true; })
+    .then(() => { globalBusy[d] = false; renderBoards(); });
+}
+function requestRun() {
+  const n = G.runNo;
+  api('run', 'POST', {}).then(j => { if (G.runNo === n && G.mode === 'run') G.runToken = j.token; }, () => {});
+}
+// Pushes entry.name to the server when it differs from what the server has (entry.gname).
+function renameGlobal(e) {
+  const key = e.gid && MINE[e.gid];
+  if (!key || e.name === e.gname) return;
+  const name = e.name;
+  api('scores/' + e.gid, 'PATCH', { key, name }).then(j => {
+    e.gname = j.entry.name;
+    for (const d of DIFF_KEYS) for (const r of GLOBAL[d] || []) if (r.id === e.gid) r.name = j.entry.name;
+    renderBoards();
+  }, err => { if (err && err.error === 'entry no longer on the board') { delete MINE[e.gid]; saveMine(); } });
+}
+function submitGlobal(d, token, entry) {
+  const n = G.runNo, name = entry.name;
+  G.submitting++;
+  api('scores', 'POST', { token, diff: d, score: entry.score, level: entry.level, name }).then(j => {
+    GLOBAL[d] = j.top; globalAt[d] = Date.now(); globalErr[d] = false;
+    if (j.rank) {
+      MINE[j.id] = j.key; saveMine();
+      entry.gid = j.id; entry.gname = name; entry.wrank = j.rank;
+      if (BOARDS[d].indexOf(entry) >= 0) saveBoard(d);
+      const current = G.runNo === n && G.mode === 'over';
+      if (current) G.world = j.rank;
+      // Not on this device's top 10 but on the world's: ask for a name now.
+      if (current && entry.global && j.rank <= BOARD_N && !G.pendingName && nameSheet.hidden) G.pendingName = { d, entry };
+      if (naming && naming.entry === entry) setNameMsg();
+      renameGlobal(entry);
+    }
+    renderBoards();
+  }, () => {}).then(() => { G.submitting--; });
 }
 function withStyle(key, fn) { const prev = ST.key; applyStyle(key); try { fn(); } finally { applyStyle(prev); } }
 
@@ -685,7 +747,8 @@ function vibrate(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch
    ========================================================= */
 const G = {
   mode: 'title', phase: '', phaseT: 0, paused: false, clock: 0,
-  t: 0, level: 1, score: 0, hi: HIS[DF.key], newHi: false, rank: 0, pendingName: null, runEasy: false, lives: 3, nextLife: 1500,
+  t: 0, level: 1, score: 0, hi: HIS[DF.key], newHi: false, rank: 0, world: 0, pendingName: null,
+  runNo: 0, runToken: null, submitting: 0, runEasy: false, lives: 3, nextLife: 1500,
   player: null, enemies: [], pb: [], eb: [], pups: [], parts: [], rings: [], pops: [], booms: [], queue: [],
   boss: null, wavesLeft: 0, waveT: 0, lastWave: '', kills: 0, overT: 0, fireCd: 0, dragDy: 0,
   shake: 0, flashA: 0, hurtA: 0, sector: 0, bgScroll: 0, assistHold: 0, aimKey: null, aimY: 0,
@@ -1031,7 +1094,8 @@ function startGame() {
   G.mode = 'run'; G.paused = false; G.level = 1; G.score = 0; G.lives = 3; G.nextLife = 1500;
   G.kills = 0; G.t = 0; G.dragDy = 0; G.fireCd = 0; G.flashA = 0; G.hurtA = 0;
   G.runEasy = DF.key === 'easy'; G.assistHold = 0; G.aimKey = null;
-  G.rank = 0; G.pendingName = null;
+  G.rank = 0; G.world = 0; G.pendingName = null;
+  G.runNo++; G.runToken = null; requestRun();
   clearField();
   G.player = newPlayer(2.0);
   beginLevel(); sfx.start(); updateUI();
@@ -1045,14 +1109,16 @@ function gameOver() {
   G.newHi = beat && board === DF;
   G.hi = HIS[DF.key];
   const slot = boardSlot(board.key, G.score);
-  G.rank = slot + 1; G.pendingName = null;
+  G.rank = slot + 1; G.pendingName = null; G.world = 0;
+  const entry = { name: cleanName(loadStr('voidlance.name')) || NAME_DEFAULT, score: G.score, level: G.level, at: Date.now() };
   if (slot >= 0) {
-    const entry = { name: cleanName(loadStr('voidlance.name')) || NAME_DEFAULT, score: G.score, level: G.level, at: Date.now() };
     BOARDS[board.key].splice(slot, 0, entry);
     BOARDS[board.key].length = Math.min(BOARDS[board.key].length, BOARD_N);
     saveBoard(board.key);
     G.pendingName = { d: board.key, entry };
-  }
+  } else entry.global = true;
+  if (G.runToken && G.score > 0) submitGlobal(board.key, G.runToken, entry);
+  G.runToken = null;
   clearField(); sfx.over(); updateUI();
 }
 function fire() {
@@ -1561,6 +1627,7 @@ function drawOver() {
   if (G.newHi) { if (Math.floor(G.clock * 3) % 2 === 0) txt('New high score', W / 2, H * 0.61, 8 * s, '#ffc93c', 'center', '#ffc93c'); }
   else if (G.rank) txt('TOP 10   #' + G.rank, W / 2, H * 0.61, 8 * s, '#ffe08a');
   else txt(DF.label.toUpperCase() + '   HI ' + pad5(G.hi), W / 2, H * 0.61, 8 * s, '#a9a1cf');
+  if (G.world) txt('WORLD   #' + G.world, W / 2, H * 0.69, 7 * s, '#9fe8ff');
   if (G.overT > 0.9 && Math.floor(G.clock * 2.2) % 2 === 0) txt('Tap to retry', W / 2, H * 0.8, 9 * s, '#ffffff', 'center', '#3cc8ff');
 }
 function drawPause() {
@@ -1683,11 +1750,12 @@ function lcdTitle() {
 function lcdOver() {
   lcdStars();
   lctext('GAME OVER', 4, 2);
-  lctext('SCORE ' + pad5(G.score), 18);
-  if (G.newHi) { if (Math.floor(G.clock * 3) % 2 === 0) lctext('NEW HI', 26); }
-  else if (G.rank) lctext('TOP 10 #' + G.rank, 26);
-  else lctext(DF.label.toUpperCase() + ' HI ' + pad5(G.hi), 26);
-  if (G.overT > 0.9 && Math.floor(G.clock * 2.5) % 2 === 0) lctext('TAP TO RETRY', 37);
+  lctext('SCORE ' + pad5(G.score), 17);
+  if (G.newHi) { if (Math.floor(G.clock * 3) % 2 === 0) lctext('NEW HI', 24); }
+  else if (G.rank) lctext('TOP 10 #' + G.rank, 24);
+  else lctext(DF.label.toUpperCase() + ' HI ' + pad5(G.hi), 24);
+  if (G.world) lctext('WORLD #' + G.world, 31);
+  if (G.overT > 0.9 && Math.floor(G.clock * 2.5) % 2 === 0) lctext('TAP TO RETRY', 39);
 }
 function lcdPause() { lctext('PAUSED', 13, 2); lctext('TAP TO RESUME', 30); }
 function renderLCD(dt) {
@@ -1859,6 +1927,7 @@ for (const key of DIFF_KEYS) {
 
 /* High score boards: the menu shows one difficulty at a time; every row can be renamed. */
 const boardTabs = document.getElementById('boardTabs');
+const scopeTabs = document.getElementById('scopeTabs');
 const boardList = document.getElementById('boardList');
 const boardEmpty = document.getElementById('boardEmpty');
 const nameSheet = document.getElementById('nameSheet');
@@ -1869,7 +1938,7 @@ const nameInput = document.getElementById('nameInput');
 const nameCancel = document.getElementById('nameCancel');
 const nameBoard = document.getElementById('nameBoard');
 const PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>';
-let boardView = DF.key, naming = null;
+let boardView = DF.key, boardScope = 'world', naming = null;
 const boardTabButtons = [];
 for (const key of DIFF_KEYS) {
   const b = document.createElement('button');
@@ -1877,41 +1946,73 @@ for (const key of DIFF_KEYS) {
   b.addEventListener('click', () => { boardView = key; renderBoards(); });
   boardTabs.appendChild(b); boardTabButtons.push(b);
 }
-function fillBoard(ol, d, mark, editable) {
+const scopeButtons = [];
+for (const [key, label] of [['world', 'World'], ['local', 'This device']]) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.setAttribute('role', 'radio'); b.dataset.scope = key; b.textContent = label;
+  b.addEventListener('click', () => { boardScope = key; renderBoards(); });
+  scopeTabs.appendChild(b); scopeButtons.push(b);
+}
+// rows: board entries; isMe(r) highlights a row; onEdit(r), when given, adds rename buttons where it returns a function.
+function fillBoard(ol, rows, isMe, onEdit) {
   ol.textContent = '';
-  BOARDS[d].forEach((r, i) => {
+  rows.forEach((r, i) => {
     const li = document.createElement('li');
-    if (r === mark) li.className = 'me';
+    if (isMe(r)) li.className = 'me';
     const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = '#' + (i + 1);
     const nm = document.createElement('span'); nm.className = r.name ? 'nm' : 'nm anon'; nm.textContent = r.name || 'Unnamed';
     const sc = document.createElement('span'); sc.className = 'sc'; sc.textContent = pad5(r.score);
     const lv = document.createElement('span'); lv.className = 'lv'; lv.textContent = r.level ? 'Lv ' + r.level : '';
     li.append(rk, nm, sc, lv);
-    if (editable) {
+    const edit = onEdit && onEdit(r);
+    if (edit) {
       const eb = document.createElement('button');
       eb.type = 'button'; eb.className = 'edit'; eb.innerHTML = PENCIL;
       eb.setAttribute('aria-label', 'Rename #' + (i + 1) + ' (' + (r.name || 'unnamed') + ')');
-      eb.addEventListener('click', () => openNamePrompt(d, r, false));
+      eb.addEventListener('click', edit);
       li.appendChild(eb);
-    }
+    } else if (onEdit) li.appendChild(document.createElement('span'));
     ol.appendChild(li);
   });
 }
+// A world row this browser submitted, as an entry the name dialog can edit.
+const worldEntry = r => ({ name: r.name, score: r.score, level: r.level, at: r.at, gid: r.id, gname: r.name, global: true });
 function renderBoards() {
   for (const b of boardTabButtons) b.setAttribute('aria-checked', b.dataset.diff === boardView ? 'true' : 'false');
-  fillBoard(boardList, boardView, null, true);
-  boardList.hidden = !BOARDS[boardView].length;
+  for (const b of scopeButtons) b.setAttribute('aria-checked', b.dataset.scope === boardScope ? 'true' : 'false');
+  const d = boardView;
+  let rows;
+  if (boardScope === 'world') {
+    if (!sheet.hidden) fetchGlobal(d);
+    rows = GLOBAL[d] || [];
+    fillBoard(boardList, rows, r => !!MINE[r.id], r => MINE[r.id] && (() => openNamePrompt(d, worldEntry(r), false)));
+    boardEmpty.textContent = GLOBAL[d] ? 'No world scores yet. Be the first!'
+      : globalErr[d] ? 'Could not load the world scores. Check your connection.' : 'Loading world scores…';
+  } else {
+    rows = BOARDS[d];
+    fillBoard(boardList, rows, () => false, r => () => openNamePrompt(d, r, false));
+    boardEmpty.textContent = 'No scores yet. Make the top 10 to add your name.';
+  }
+  boardList.hidden = !rows.length;
   boardEmpty.hidden = !boardList.hidden;
 }
+function setNameMsg() {
+  const { d, entry } = naming, rank = BOARDS[d].indexOf(entry) + 1, at = [];
+  if (rank) at.push('#' + rank + ' on this device');
+  if (entry.wrank) at.push('#' + entry.wrank + ' worldwide');
+  nameMsg.textContent = pad5(entry.score) + (entry.level ? ', level ' + entry.level : '') + ' on ' + DIFFS[d].label +
+    (at.length ? ': ' + at.join(', ') : '') + '.';
+}
 function openNamePrompt(d, entry, fresh) {
-  if (BOARDS[d].indexOf(entry) < 0) return;
-  naming = { d, entry, fresh };
   const rank = BOARDS[d].indexOf(entry) + 1;
-  nameTitle.textContent = fresh ? (rank === 1 ? 'New high score!' : 'Top 10!') : 'Rename';
-  nameMsg.textContent = '#' + rank + ' on the ' + DIFFS[d].label + ' board with ' + pad5(entry.score) + (entry.level ? ', level ' + entry.level : '') + '.';
+  if (!rank && !entry.global) return;
+  naming = { d, entry, fresh };
+  nameTitle.textContent = !fresh ? 'Rename' : entry.wrank === 1 ? 'World record!' : rank === 1 ? 'New high score!' : 'Top 10!';
+  setNameMsg();
   nameCancel.textContent = fresh ? 'Skip' : 'Cancel';
   nameInput.value = entry.name;
-  fillBoard(nameBoard, d, entry, false);
+  if (rank) fillBoard(nameBoard, BOARDS[d], r => r === entry);
+  else fillBoard(nameBoard, GLOBAL[d] || [], r => r.id === entry.gid);
   nameSheet.hidden = false;
   keys.up = keys.down = false;
   nameInput.focus(); nameInput.select();
@@ -1924,7 +2025,10 @@ function closeNamePrompt(save) {
   if (save) {
     entry.name = cleanName(nameInput.value) || NAME_DEFAULT;
     if (fresh) saveStr('voidlance.name', entry.name);
-    saveBoard(d);
+    // A local entry and its world entry share the name.
+    const local = entry.global ? BOARDS[d].find(r => entry.gid && r.gid === entry.gid) : entry;
+    if (local) { local.name = entry.name; saveBoard(d); }
+    renameGlobal(entry);
   }
   nameSheet.hidden = true;
   boardView = d; renderBoards();
@@ -2045,7 +2149,7 @@ function setDifficulty(key) {
   boardView = key; renderBoards();
   updateUI();
 }
-function openMenu() { setPaused(true); boardView = DF.key; renderBoards(); sheet.hidden = false; updateUI(); closeSheet.focus(); }
+function openMenu() { setPaused(true); boardView = DF.key; sheet.hidden = false; renderBoards(); updateUI(); closeSheet.focus(); }
 function hideMenu() { sheet.hidden = true; updateUI(); menuBtn.focus(); }
 menuBtn.addEventListener('click', () => { initAudio(); openMenu(); });
 closeSheet.addEventListener('click', hideMenu);
@@ -2123,7 +2227,7 @@ window.addEventListener('blur', () => { keys.up = keys.down = false; });
 
 // Read by /fresh.js: an update may only reload the page on the title or
 // game-over screen with the menu closed, never during a run.
-window.__spaceImpactQuiet = () => G.mode !== 'run' && sheet.hidden && nameSheet.hidden && !G.pendingName;
+window.__spaceImpactQuiet = () => G.mode !== 'run' && sheet.hidden && nameSheet.hidden && !G.pendingName && !G.submitting;
 
 /* =========================================================
    Main loop
