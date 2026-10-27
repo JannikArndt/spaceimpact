@@ -34,13 +34,19 @@ Follows the app-conventions skill (claude-skills repo).
     movement, waves, collisions.
   - Swipe and mouse-wheel/trackpad scroll input accumulate in `G.dragDy`.
     Keyboard input (arrows, W/S; Space/Enter fire) is in `keys.up` /
-    `keys.down`. The active steering finger is tracked in `steerId`. `DESK`
+    `keys.down`; `keySpeed` starts slow so a tap nudges the ship, then
+    accelerates. The active steering finger is tracked in `steerId`. `DESK`
     (fine pointer with hover) switches the control hints to keys and scroll.
+  - Scroll direction (`SCROLLS` / `SC`, `setScroll`, localStorage
+    `voidlance.scroll`: `natural` (default) | `classic`, menu `#scrollSec`),
+    desktop only.
+  - `#titlePick` holds the pill rows (`#pickStyle`, `#pickDiff`,
+    `#pickScroll`) shown on the title and game-over screens.
   - Settings pattern (copy it for new settings), e.g. graphics style:
     - set via `applyStyle` / `setStyle`;
     - saved in localStorage under `voidlance.style`;
     - shown in the menu sheet's "Graphics" section (`#styleOpts`) and the
-      title-screen pills (`#titlePick`);
+      title/game-over pills (`#pickStyle` in `#titlePick`);
     - kept in sync by `updateUI()`.
   - Difficulty follows the same pattern: `DIFFS` / `DF`, `setDifficulty`,
     localStorage `voidlance.difficulty` (`normal` | `easy`, default `normal`),
