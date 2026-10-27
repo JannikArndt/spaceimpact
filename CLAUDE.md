@@ -32,8 +32,10 @@ Follows the app-conventions skill (claude-skills repo).
     new must follow the same rule.
   - `G` holds the game state. `stepRun(dt)` runs the per-tick logic: player
     movement, waves, collisions.
-  - Swipe input accumulates in `G.dragDy`. Keyboard input is in `keys.up` /
-    `keys.down`. The active steering finger is tracked in `steerId`.
+  - Swipe and mouse-wheel/trackpad scroll input accumulate in `G.dragDy`.
+    Keyboard input (arrows, W/S; Space/Enter fire) is in `keys.up` /
+    `keys.down`. The active steering finger is tracked in `steerId`. `DESK`
+    (fine pointer with hover) switches the control hints to keys and scroll.
   - Settings pattern (copy it for new settings), e.g. graphics style:
     - set via `applyStyle` / `setStyle`;
     - saved in localStorage under `voidlance.style`;

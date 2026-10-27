@@ -756,6 +756,9 @@ const G = {
 const keys = { up: false, down: false };
 const diff = () => 1 + 0.12 * (G.level - 1);
 const playH = () => H - TOP;
+// Mouse or trackpad with a keyboard: steer with the arrow keys or the wheel.
+const DESK = matchMedia('(hover: hover) and (pointer: fine)').matches;
+const STEER_HINT = DESK ? 'Arrow keys or scroll to steer. Space to fire.' : 'Swipe anywhere to steer. Tap to fire.';
 const rndY = h => TOP + 2 * s + Math.random() * Math.max(0, H - TOP - h - 4 * s);
 function prune(a) { let j = 0; for (let i = 0; i < a.length; i++) if (!a[i].dead) a[j++] = a[i]; a.length = j; }
 function setPhase(p) { G.phase = p; G.phaseT = 0; }
@@ -1615,7 +1618,7 @@ function drawTitle() {
   X.shadowColor = 'rgba(192,156,255,0.9)'; X.shadowBlur = 10 * s * scale / 4;
   X.fillStyle = gr; X.fillText('SPACE IMPACT', W / 2, H * 0.24);
   X.shadowBlur = 0; X.shadowColor = 'rgba(0,0,0,0)';
-  txt('Swipe to steer. Tap to fire.', W / 2, H * 0.39, 7 * s, '#cfc8ec');
+  txt(DESK ? 'Arrows or scroll to steer. Space to fire.' : 'Swipe to steer. Tap to fire.', W / 2, H * 0.39, Math.min(7 * s, W / 30), '#cfc8ec');
   if (Math.floor(G.clock * 2.2) % 2 === 0) txt('Tap to start', W / 2, H * 0.68, 10 * s, '#ffffff', 'center', '#3cc8ff');
   txt(DF.label.toUpperCase() + '   HI ' + pad5(G.hi), W / 2, H * 0.78, 7 * s, '#a9a1cf');
 }
@@ -2046,6 +2049,7 @@ nameSheet.addEventListener('click', e => { if (e.target === nameSheet) closeName
 const frame = document.getElementById('frame');
 const below = document.getElementById('below');
 const hint = document.getElementById('hint');
+hint.querySelector('span').textContent = STEER_HINT;
 const rotateHint = document.getElementById('rotateHint');
 function buildVignettes() {
   const w = canvas.width, h = canvas.height;
@@ -2200,6 +2204,15 @@ function endPtr(e, cancelled) {
 window.addEventListener('pointerup', e => endPtr(e, false));
 window.addEventListener('pointercancel', e => endPtr(e, true));
 document.addEventListener('touchmove', e => { if (e.cancelable && !(e.target && e.target.closest && e.target.closest('.sheet'))) e.preventDefault(); }, { passive: false });
+// Mouse wheel and two-finger trackpad scroll steer like a swipe: scrolling
+// down moves the ship down. 600 px of scroll (six wheel notches) = full height.
+window.addEventListener('wheel', e => {
+  if (e.target && e.target.closest && e.target.closest('.sheet')) return;
+  if (e.cancelable) e.preventDefault();
+  if (G.mode !== 'run' || G.paused || !sheet.hidden || !nameSheet.hidden) return;
+  const px = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 600 : 1);
+  G.dragDy += px * playH() / 600;
+}, { passive: false });
 document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('contextmenu', e => e.preventDefault());
 
