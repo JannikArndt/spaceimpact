@@ -1,8 +1,7 @@
 # Space Impact
 
 Touch-screen side-scrolling shooter in the style of Nokia's Space Impact.
-Deployed to CapRover (captain.timpanini.com) following the timpanini skill's
-pattern. Live at https://spaceimpact.timpanini.com and
+Deployed to CapRover (captain.timpanini.com). Live at https://spaceimpact.timpanini.com and
 https://spaceimpact.jannikarndt.de.
 
 ## Ground rules
@@ -123,4 +122,4 @@ Follows the app-conventions skill (claude-skills repo).
   commands above).
 - CapRover app `spaceimpact`, also at https://spaceimpact.jannikarndt.de
   (custom domain, HTTPS forced). Registering apps and domains: the
-  timpanini skill.
+  app-conventions skill ("New CapRover app").
