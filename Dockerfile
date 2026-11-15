@@ -7,7 +7,7 @@
 # new digests weekly and dependabot-merge.yml merges and deploys them once
 # the checks pass. Resolve by hand with
 #   docker buildx imagetools inspect node:24-alpine
-FROM node:24-alpine@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85
+FROM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5
 WORKDIR /app
 ENV NODE_ENV=production PORT=80
 # Exactly INPUTS in server/buildid.mjs (test/deploy-contract.test.mjs checks).
